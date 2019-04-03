@@ -1,20 +1,10 @@
 0.169832
-Application 19567743 resources: utime ~2s, stime ~0s, Rss ~6192, inblocks ~2573, outblocks ~6746
 0.169728
-Application 19567745 resources: utime ~2s, stime ~0s, Rss ~6192, inblocks ~2573, outblocks ~6746
 0.169968
-Application 19567746 resources: utime ~2s, stime ~0s, Rss ~6192, inblocks ~2573, outblocks ~6746
 0.169926
-Application 19567747 resources: utime ~2s, stime ~0s, Rss ~6192, inblocks ~2573, outblocks ~6746
 0.169863
-Application 19567748 resources: utime ~2s, stime ~0s, Rss ~6192, inblocks ~2573, outblocks ~6746
 0.169904
-Application 19567749 resources: utime ~2s, stime ~0s, Rss ~6192, inblocks ~2573, outblocks ~6746
 0.169819
-Application 19567750 resources: utime ~2s, stime ~0s, Rss ~6192, inblocks ~2573, outblocks ~6746
 0.169837
-Application 19567751 resources: utime ~2s, stime ~0s, Rss ~6192, inblocks ~2573, outblocks ~6746
 0.169862
-Application 19567752 resources: utime ~2s, stime ~0s, Rss ~6192, inblocks ~2573, outblocks ~6746
 0.169853
-Application 19567753 resources: utime ~2s, stime ~0s, Rss ~6192, inblocks ~2573, outblocks ~6746

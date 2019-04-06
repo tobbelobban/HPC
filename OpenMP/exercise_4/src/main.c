@@ -105,11 +105,11 @@ void generate_particles(struct Body **ret, int size)
 		bodies[i].old_position[1] = bodies[i].position[1];
 		bodies[i].old_position[2] = bodies[i].position[2];
 
-		bodies[i].velocity[0] = (rand() / (double)(RAND_MAX)) * 2 - 1;;
-		bodies[i].velocity[1] = (rand() / (double)(RAND_MAX)) * 2 - 1;;
-		bodies[i].velocity[2] = (rand() / (double)(RAND_MAX)) * 2 - 1;;
+		bodies[i].velocity[0] = 0.0;
+		bodies[i].velocity[1] = 0.0;
+		bodies[i].velocity[2] = 0.0;
 
-		bodies[i].mass = (rand() / (double)(RAND_MAX)) * 2 - 1;;
+		bodies[i].mass = 1.0 / size;
 	}
 
 	*ret = bodies;

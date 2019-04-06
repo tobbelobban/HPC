@@ -5,6 +5,11 @@ void omp_sum(double *sum_ret)
 
 }
 
+void omp_critical_sum(double *sum_ret)
+{
+
+}
+
 void omp_atomic_sum(double *sum_ret)
 {
 

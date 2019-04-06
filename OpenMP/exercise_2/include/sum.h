@@ -12,6 +12,7 @@ extern double *x;
 extern int size;
 
 void omp_sum(double*);
+void omp_critical_sum(double*);
 void omp_atomic_sum(double*);
 void omp_local_sum(double*);
 void omp_padded_sum(double*);

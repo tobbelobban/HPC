@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 	int repeat = 1;
 	int num_threads = omp_get_max_threads();
 
-	double omp_sum_val, omp_atomic_sum_val, omp_local_sum_val, omp_padded_sum_val, omp_optimized_sum_val;
+	double omp_sum_val, omp_atomic_sum_val, omp_critical_sum_val, omp_local_sum_val, omp_padded_sum_val, omp_optimized_sum_val;
 
 	while ((opt = getopt(argc, argv, "di:r:n:s:")) != -1) {
 		switch (opt) {
@@ -81,6 +81,7 @@ int main(int argc, char *argv[])
 	}
 
 	run_test("omp", repeat, omp_sum, &omp_sum_val);
+	run_test("omp_critical", repeat, omp_critical_sum, &omp_critical_sum_val);
 	run_test("omp_atomic", repeat, omp_atomic_sum, &omp_atomic_sum_val);
 	run_test("omp_local", repeat, omp_local_sum, &omp_local_sum_val);
 	run_test("omp_padded", repeat, omp_padded_sum, &omp_padded_sum_val);

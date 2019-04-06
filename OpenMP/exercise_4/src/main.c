@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 
 	int output_steps = 0;
 
-	while ((opt = getopt(argc, argv, "n:i:o:s:d:e:G:")) != -1) {
+	while ((opt = getopt(argc, argv, "n:i:o:t:d:e:G:s:")) != -1) {
 		switch (opt) {
 			case 'e':
 				EPS = atof(optarg);
@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 			case 'o':
 				output_steps = atoi(optarg);
 				break;
-			case 's':
+			case 't':
 				steps = atoi(optarg);
 				break;
 			case 'd':
@@ -53,6 +53,9 @@ int main(int argc, char *argv[])
 				break;
 			case 'G':
 				G = atof(optarg);
+				break;
+			case 's':
+				srand(atoi(optarg));
 				break;
 			default:
 				print_usage(argv[0]);
@@ -83,7 +86,7 @@ int main(int argc, char *argv[])
 
 void print_usage(const char *name)
 {
-	printf("Usage: %s [-i input file / -n size (1000)] [-o steps per output (0)] [-d dt (1.0)] [-G Gravitational constant (1.0)] [-e softening (0.1)] [-s time steps (100)] \n", name);
+	printf("Usage: %s [-i input file / -n size (1000) -s seed (1)] [-o steps per output (0)] [-d dt (1.0)] [-G Gravitational constant (1.0)] [-e softening (0.1)] [-t time steps (100)] \n", name);
 	exit(1);
 }
 

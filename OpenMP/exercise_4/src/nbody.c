@@ -20,24 +20,24 @@ void nbody(struct Body *bodies, int steps, int output_steps, int N, double G, do
 			double fy = 0.0;
 			double fz = 0.0;
 
-			double f;
-			double r;
-
 			double dx;
 			double dy;
 			double dz;
 
+			double f;
+			double r;
+
 			double ax;
 			double ay;
 			double az;
-	
+
 			for (int k = 0; k < N; k++) {
 				if (j != k) {
 					dx = bodies[j].position[0] - bodies[k].old_position[0];
 					dy = bodies[j].position[1] - bodies[k].old_position[1];
 					dz = bodies[j].position[2] - bodies[k].old_position[2];
 					r = sqrt(dx * dx + dy * dy + dz * dz);
-					f = -G * (bodies[j].mass * bodies[k].mass) / ((r * r) + (EPS * EPS));
+					f = -G * (bodies[j].mass * bodies[k].mass) / pow((r * r) + (EPS * EPS), 1.5);
 
 					fx += f * dx / r;
 					fy += f * dy / r;
@@ -58,6 +58,8 @@ void nbody(struct Body *bodies, int steps, int output_steps, int N, double G, do
 			bodies[j].position[2] += bodies[j].velocity[2] * DT;
 		}
 
+		t2 = omp_get_wtime();
+
 		for (int j = 0; j < N; j++) {
 			bodies[j].old_position[0] = bodies[j].position[0];
 			bodies[j].old_position[1] = bodies[j].position[1];
@@ -67,8 +69,6 @@ void nbody(struct Body *bodies, int steps, int output_steps, int N, double G, do
 				fprintf(checkpoint, "%d\t%f\t%f\t%f\n\n\n", j, bodies[j].position[0], bodies[j].position[1], bodies[j].position[2]);
 		}
 	
-		t2 = omp_get_wtime();
-
 		if (checkpoint != NULL) {
 			fclose(checkpoint);
 			checkpoint = NULL;

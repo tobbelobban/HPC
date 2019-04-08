@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 	int N;
 	double G = 1.0;
 	double DT = 1.0;
-	double EPS = 0.1;
+	double EPS = 1.0;
 	int steps = 100;
 
 	int output_steps = 0;

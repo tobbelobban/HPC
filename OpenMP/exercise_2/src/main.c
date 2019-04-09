@@ -11,6 +11,10 @@
 
 #include "sum.h"
 
+#ifndef TEST_ITER
+#define TEST_ITER 20
+#endif
+
 #define MY_ASSERT(expr) ( expr ? (void) (0) : printf("%s:%d %s: Assertion failed.\n", __FILE__, __LINE__, __func__) );
 
 double *x = NULL;
@@ -62,19 +66,23 @@ int main(int argc, char *argv[])
 
 	if (debug == 1) {
 		double start_time, end_time;
+		double exec_time;
 		double serial_sum_val;
 		double prev_avg_runtime = 0.0, avg_runtime = 0.0, stddev_runtime = 0.0;
 
 		serial_sum(x, size, &serial_sum_val);
 
-		for(int i = 0; i < repeat; i++) {
+		for (int i = 0; i < repeat; i++) {
 			start_time = omp_get_wtime();
-			serial_sum(x, size, &serial_sum_val);
+			for (int j = 0; j < TEST_ITER; j++) {
+				serial_sum(x, size, &serial_sum_val);
+			}
 			end_time = omp_get_wtime();
+			exec_time = (end_time - start_time) / (double)TEST_ITER;
 
 			prev_avg_runtime = avg_runtime;
-			avg_runtime = avg_runtime + ( (end_time - start_time) * 1000 - avg_runtime ) / (i + 1);
-			stddev_runtime = stddev_runtime + ( (end_time - start_time) * 1000 - avg_runtime) * ( (end_time - start_time) * 1000 - prev_avg_runtime);
+			avg_runtime = avg_runtime + ( exec_time * 1000 - avg_runtime ) / (i + 1);
+			stddev_runtime = stddev_runtime + ( exec_time * 1000 - avg_runtime) * ( exec_time * 1000 - prev_avg_runtime);
 		}
 		stddev_runtime = sqrt(stddev_runtime / (repeat - 1));
 		printf("Max(serial) = %.6f duration = %f ± %f ms\n", serial_sum_val, avg_runtime, stddev_runtime);
@@ -158,6 +166,7 @@ void generate_random(double **x, int size)
 void run_test(char *name, int repeat, void (*func)(double*), double *sum_val)
 {
 	double start_time, end_time;
+	double exec_time;
 	double avg_runtime = 0.0, prev_avg_runtime = 0.0, stddev_runtime = 0.0;
 	double omp_sum_val = 0.0, serial_sum_val;
 
@@ -166,19 +175,22 @@ void run_test(char *name, int repeat, void (*func)(double*), double *sum_val)
 
 	for (int i = 0; i < repeat; i++) {
 		start_time = omp_get_wtime();
-		func(&omp_sum_val);
+		for (int j = 0; j < TEST_ITER; j++) {
+			func(&omp_sum_val);
+		}
 		end_time = omp_get_wtime();
+		exec_time = (end_time - start_time) / (double)TEST_ITER;
 		//if (!(serial_sum_val == omp_sum_val)) {
 		//	fprintf(stderr, "assertion failed: %f\n", omp_sum_val);
 		//}
 		//assert(serial_sum_val == omp_sum_val);
 
 		prev_avg_runtime = avg_runtime;
-		avg_runtime = avg_runtime + ( (end_time - start_time) * 1000 - avg_runtime ) / (i + 1);
-		stddev_runtime = stddev_runtime + ( (end_time - start_time) * 1000 - avg_runtime) * ( (end_time - start_time) * 1000 - prev_avg_runtime);
+		avg_runtime = avg_runtime + ( exec_time * 1000 - avg_runtime ) / (i + 1);
+		stddev_runtime = stddev_runtime + ( exec_time * 1000 - avg_runtime) * ( exec_time * 1000 - prev_avg_runtime);
 	}
 	stddev_runtime = sqrt(stddev_runtime / (repeat - 1));
-	printf("Test(%s) = %.6f duration = %f ± %f\n", name, omp_sum_val, avg_runtime, stddev_runtime);
+	printf("Test(%s) = %.6f duration = %f ± %f ms\n", name, omp_sum_val, avg_runtime, stddev_runtime);
 
 	*sum_val = omp_sum_val;
 }

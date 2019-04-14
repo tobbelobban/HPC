@@ -1,0 +1,9 @@
+Max(serial) = 14958.829300 duration = 0.083706 ± 0.000584 ms
+Test(omp) = 4177.429332 duration = 0.076860 ± 0.000481 ms
+Test(omp_critical) = 14958.829300 duration = 6.821743 ± 0.079988 ms
+Test(omp_atomic) = 14958.829300 duration = 1.811537 ± 0.005215 ms
+Test(omp_local) = 14958.829300 duration = 0.071287 ± 0.000668 ms
+Test(omp_padded) = 14958.829300 duration = 0.031157 ± 0.000632 ms
+Test(omp_private) = 14958.829300 duration = 0.031162 ± 0.000146 ms
+Test(omp_reduction) = 14958.829300 duration = 0.029333 ± 0.000586 ms
+

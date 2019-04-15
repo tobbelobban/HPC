@@ -48,4 +48,3 @@ int DFT(int idft, double* xr, double* xi, double* Xr_o, double* Xi_o, int N)
 	}
 	return 1;
 }
-

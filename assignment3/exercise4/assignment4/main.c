@@ -67,19 +67,19 @@ int main(int argc, char *argv[])
 		generate_particles(&bodies, 1000);
 	}
 
-	/*printf("N       = %d\n", N);
+	printf("N       = %d\n", N);
 	printf("G       = %e\n", G);
 	printf("dt      = %e\n", DT);
 	printf("EPS     = %e\n", EPS);
 	printf("time    = %d\n", steps);
 	printf("Threads = %d\n", omp_get_max_threads());
 	printf("checkpoints: every %d steps\n", output_steps);
-	*/
+
 	double start, stop;
 	start = omp_get_wtime();
 	nbody(bodies, steps, output_steps, N, G, DT, EPS);
 	stop = omp_get_wtime();
-	printf("%f\n", stop - start);
+	printf("Total runtime: %f\n", stop - start);
 
 	return 0;
 }

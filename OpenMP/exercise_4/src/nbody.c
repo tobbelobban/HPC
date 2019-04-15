@@ -5,7 +5,7 @@ void nbody(struct Body *bodies, int steps, int output_steps, int N, double G, do
 	FILE *checkpoint = NULL;
 	char buffer[1024];
 
-	double t1, t2;
+//	double t1, t2;
 
 	for (int i = 0; i < steps; i++) {
 		if (output_steps != 0 && (i + output_steps) % output_steps == 0) {
@@ -13,9 +13,10 @@ void nbody(struct Body *bodies, int steps, int output_steps, int N, double G, do
 			checkpoint = fopen(buffer, "w");
 		}
 
-		t1 = omp_get_wtime();
-
-		for (int j = 0; j < N; j++) {
+		//t1 = omp_get_wtime();
+		int j;
+		#pragma omp parallel for
+		for (j = 0; j < N; j++) {
 			double fx = 0.0;
 			double fy = 0.0;
 			double fz = 0.0;
@@ -30,7 +31,7 @@ void nbody(struct Body *bodies, int steps, int output_steps, int N, double G, do
 			double ax;
 			double ay;
 			double az;
-
+			
 			for (int k = 0; k < N; k++) {
 				if (j != k) {
 					dx = bodies[j].position[0] - bodies[k].old_position[0];
@@ -58,8 +59,8 @@ void nbody(struct Body *bodies, int steps, int output_steps, int N, double G, do
 			bodies[j].position[2] += bodies[j].velocity[2] * DT;
 		}
 
-
-		for (int j = 0; j < N; j++) {
+		#pragma omp parallel for
+		for (j = 0; j < N; j++) {
 			bodies[j].old_position[0] = bodies[j].position[0];
 			bodies[j].old_position[1] = bodies[j].position[1];
 			bodies[j].old_position[2] = bodies[j].position[2];
@@ -68,13 +69,13 @@ void nbody(struct Body *bodies, int steps, int output_steps, int N, double G, do
 				fprintf(checkpoint, "%d\t%f\t%f\t%f\n\n\n", j, bodies[j].position[0], bodies[j].position[1], bodies[j].position[2]);
 		}
 
-		t2 = omp_get_wtime();
+		//t2 = omp_get_wtime();
 	
 		if (checkpoint != NULL) {
 			fclose(checkpoint);
 			checkpoint = NULL;
 		}
 
-		printf("step = %d, runtime: %f\n", i, t2 - t1);
+		// printf("step = %d, runtime: %f\n", i, t2 - t1);
 	}
 }

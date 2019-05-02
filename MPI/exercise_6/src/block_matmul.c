@@ -36,14 +36,15 @@ struct Config config;
 
 void init_matmul(char *A_file, char *B_file, char *outfile)
 {
+	/* Copy output file name to configuration */
 
 	/* Get matrix size header */
 
 	/* Broadcast global matrix sizes */
 
-	/* Matrix dim as NxN */
+	/* Set dim of tiles relative to the number of processes as NxN where N=sqrt(world_size) */
 
-	/* Verify dim of A and B */
+	/* Verify dim of A and B matches for matul and both are square*/
 
 	/* Create Cart communicator for NxN processes */
 
@@ -51,9 +52,9 @@ void init_matmul(char *A_file, char *B_file, char *outfile)
 
 	/* Sub div cart communicator to N col communicator */
 
-	/* Sizes of full matrix */
+	/* Setup sizes of full matrices */
 
-	/* Determine sizes of local matrix tile*/
+	/* Setup sizes of local matrix tiles */
 
 	/* Create subarray datatype for local matrix tile */
 
@@ -61,15 +62,14 @@ void init_matmul(char *A_file, char *B_file, char *outfile)
 
 	/* Set fileview of process to respective matrix block */
 
-	/* Collective read blocks from file */
+	/* Collective read blocks from files */
 
 	/* Close data source files */
 }
 
 void cleanup_matmul()
 {
-
-	/* Rank zero writes header specifying dim of result */
+	/* Rank zero writes header specifying dim of result matrix C */
 
 	/* Set fileview of process to respective matrix block with header offset */
 
@@ -92,4 +92,3 @@ void compute_fox()
 
 	}
 }
-

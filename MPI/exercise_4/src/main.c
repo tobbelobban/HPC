@@ -50,6 +50,6 @@ int main(int argc, char *argv[])
 
 void print_usage(char *program)
 {
-	fprintf(stderr, "Usage: %s [-s seed] [-r trials]\n", program);
+	fprintf(stderr, "Usage: %s [-s seed] [-f trials]\n", program);
 	exit(1);
 }

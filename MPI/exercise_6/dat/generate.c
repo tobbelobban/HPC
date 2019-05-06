@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <gsl/gsl_cblas.h>
+#include <cblas.h>
 
 int main(int argc, char *argv[])
 {
@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 	cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
                                         A_dims[0], B_dims[1], A_dims[1],
                                         1.0, A, A_dims[1], B, B_dims[1],
-                                        1.0, C, B_dims[1]);
+                                        0.0, C, B_dims[1]);
 
 	FILE *file = fopen(argv[4], "wb");
 	fwrite(A_dims, sizeof(int), 2, file);

@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 	double *A = (double*)malloc(sizeof(double) * (A_dims[0] * A_dims[1]));
 	double *B = (double*)malloc(sizeof(double) * (B_dims[0] * B_dims[1]));
 	double *C = (double*)malloc(sizeof(double) * (A_dims[0] * B_dims[1]));
-	double *C_test = (double*)malloc(sizeof(double) * (A_dims[0] * B_dims[1]));
+	//double *C_test = (double*)malloc(sizeof(double) * (A_dims[0] * B_dims[1]));
 
 	for (int i = 0; i < A_dims[0] * A_dims[1]; i++) {
 		A[i] = (double)rand() / (double)RAND_MAX;

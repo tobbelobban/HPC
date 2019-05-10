@@ -1,10 +1,10 @@
-CC = cc
+CC = mpicc
 SRC = $(wildcard src/*.c)
 OBJ = $(SRC:.c=.o)
 BIN = ./bin
 TARGET = matmul.out
 
-LDFLAGS = -lm 
+LDFLAGS = -lm -lblas
 CFLAGS = -I./include -g -Wall -O3
 
 all: dir $(BIN)/$(TARGET)
@@ -18,7 +18,7 @@ ${BIN}:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BIN)/$(TARGET): $(OBJ)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) -o $@ $^ $(LDFLAGS) 
 
 .PHONY: clean
 clean:

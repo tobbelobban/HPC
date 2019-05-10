@@ -4,7 +4,7 @@
 #include <string.h>
 #include <math.h>
 #include <mpi.h>
-
+#include <cblas.h>
 #include "block_matmul.h"
 
 void print_usage();
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (world_rank == 0) {
-		stddev_runtime = sqrt(stddev_runtime / (repeat - 1));
+		stddev_runtime = sqrt( stddev_runtime / (repeat - 1) );
 		printf("duration\t= %f±%f\n", avg_runtime, stddev_runtime);
 	}
 

@@ -9,6 +9,9 @@ CFLAGS = -I./include -g -Wall -O3
 
 all: dir $(BIN)/$(TARGET)
 
+run:
+	mpirun $(BIN)/$(TARGET)
+
 dir: ${BIN}
 
 ${BIN}:

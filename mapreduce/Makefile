@@ -1,4 +1,4 @@
-CC = mpic++
+CC = mpiCC
 SRC = $(wildcard src/*.cpp)
 OBJ = $(SRC:.cpp=.o)
 BIN = ./bin
@@ -14,7 +14,7 @@ dir: ${BIN}
 ${BIN}:
 	mkdir -p $(BIN)
 
-%.o: %.c
+%.o: %.cpp
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BIN)/$(TARGET): $(OBJ)

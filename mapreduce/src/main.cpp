@@ -1,5 +1,6 @@
+#include <stdlib.h>
 #include <iostream>
-//#include <mpi.h>
+#include <mpi.h>
 
 int main(int argc, char ** argv) {
 	std::cout << "hello world" << std::endl;

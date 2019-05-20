@@ -1,12 +1,11 @@
 #include <stdlib.h>
 #include <iostream>
 #include <string>
-#include <fstream>
 #include <mpi.h>
 
 #define MASTER 0
 
-void read(std::string);
+void read(const char*);
 void map();
 void reduce();
 
@@ -30,13 +29,15 @@ int main(int argc, char ** argv) {
 	return 0;
 }
 
-void read(std::string filename) {
+void read(const char* filename) {
 
-	if(world_rank == MASTER) {
-		std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
-    std::cout << in.tellg() / (world_size - 1) << std::endl;
+	// Evenly distributed
+	MPI_Offset offset;
+	MPI_File fh;
+	MPI_File_open( MPI_COMM_WORLD, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
+	MPI_File_get_size(fh, &offset);
 
-	}
+	std::cout << offset*world_rank << std::endl;
 
 
 }

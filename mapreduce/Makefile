@@ -23,3 +23,6 @@ $(BIN)/$(TARGET): $(OBJ)
 .PHONY: clean
 clean:
 	rm -f $(OBJ) $(BIN)/$(TARGET)
+
+run:
+	mpirun -n 5 ./bin/mapreduce.out ./test/test1.txt

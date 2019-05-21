@@ -11,10 +11,10 @@ int main(int argc, char ** argv) {
 	MapReduce mp;
 
 	MPI_Init(&argc, &argv);
-	mp.init();
-	mp.read(argv[1]);
+	mp.init(argv[1]);
+	mp.read();
 	mp.map();
-
+	mp.reduce();
 	MPI_Finalize();
 
 	return 0;

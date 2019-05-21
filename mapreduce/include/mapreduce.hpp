@@ -6,22 +6,28 @@
 #include<mpi.h>
 #include<math.h>
 #include<string>
+#include<map>
 #include<vector>
+#include<queue>
 #include<cstring>
 
 #define MASTER 0
+#define READSIZE 64000000
 
 class MapReduce {
 public:
 	int world_rank;
 	int world_size;
+	int local_buff_size;
+	int local_offset;
+	int remaining_buffer_count;
 	char * read_buffer;
-	std::vector<std::pair<std::string,uint64_t>> pairs;
+	std::queue<std::pair<std::string,int>> q_pairs;
 	MPI_File fh;
 	MPI_Offset file_size;
 
-	void init();
-	void read(const char *);
+	void init(const char *);
+	void read();
 	void write();
 	void map();
 	void reduce();

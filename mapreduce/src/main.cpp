@@ -82,8 +82,42 @@ void map(char* buf) {
 }
 
 void reduce(std::vector<std::pair<std::string,uint64_t>> bucket[]) {
+	// How much data each bucket contains
+	int receive_count[world_size];
+	int send_count[world_size];
+
+	// How much data to send to each process
+	int i;
+	for(i = 0; i < world_size; i++)
+			send_count[i] = bucket[i].size();
+
+	std::cout << "Master payload: " <<send_count[MASTER] << " from rank: " << world_rank <<'\n';
+
+	// Send info of how much data each process will recieve from the other
+	MPI_Request req[world_size];
+	for(i = 0; i < world_size; i++) {
+			MPI_Igather(&send_count[i], 1, MPI_INT,
+		              receive_count, 1, MPI_INT,
+		              i, MPI_COMM_WORLD, &req[i]);
+	}
+
+	// Wait until the process know how much data to recieve
+	MPI_Wait(&req[world_rank], MPI_STATUS_IGNORE);
+
+
+	if(world_rank == MASTER) {
+		for (i = 0; i < world_size; i++) {
+			std::cout << receive_count[i] << " from rank:" << i <<'\n';
+		}
+	}
+
+
 
 	// MPI_Ibcast : All send to each other of how much data they will recieve
+
+	// wait for my bcast
+
+	// gatherv
 
 	MPI_Barrier(MPI_COMM_WORLD);
 

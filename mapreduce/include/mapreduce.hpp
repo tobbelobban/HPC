@@ -23,6 +23,7 @@ public:
 	int remaining_buffer_count;
 	char * read_buffer;
 	std::queue<std::pair<std::string,int>> q_pairs;
+	std::map<std::string,int> result;
 	MPI_File fh;
 	MPI_Offset file_size;
 

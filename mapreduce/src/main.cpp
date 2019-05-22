@@ -11,10 +11,15 @@ int main(int argc, char ** argv) {
 	MapReduce mp;
 
 	MPI_Init(&argc, &argv);
+
 	mp.init(argv[1]);
-	mp.read();
-	mp.map();
-	mp.reduce();
+
+	while(mp.remaining_buffer_count > 0) {
+		mp.read();
+		mp.map();
+		mp.reduce();
+	}
+	std::cout << "Done" << std::endl;
 	MPI_Finalize();
 
 	return 0;

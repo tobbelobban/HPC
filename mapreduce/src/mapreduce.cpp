@@ -3,14 +3,13 @@
 void MapReduce::init( const char * filename ) {
 	MPI_Comm_size( MPI_COMM_WORLD, &world_size );
 	MPI_Comm_rank( MPI_COMM_WORLD, &world_rank );
-	MPI_File_open( MPI_COMM_WORLD, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh );	
+	MPI_File_open( MPI_COMM_WORLD, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh );
 	MPI_File_get_size( fh, &file_size );
-	
-	file_size--; // remove 1 byte for eof
+
 	local_buff_size = file_size / world_size;
-	remaining_buffer_count = local_buff_size;	
+	remaining_buffer_count = local_buff_size;
 	local_offset = local_buff_size * world_rank;
-	
+
 	if(local_buff_size >= READSIZE) {
 		read_buffer = new char[READSIZE];
 	} else {
@@ -21,10 +20,12 @@ void MapReduce::init( const char * filename ) {
 void MapReduce::read() {
 	if(remaining_buffer_count >= READSIZE) {
 		MPI_File_read_at( fh, local_offset, read_buffer, READSIZE, MPI_CHAR, MPI_STATUS_IGNORE );
-		remaining_buffer_count -= READSIZE;	
+		remaining_buffer_count -= READSIZE;
+		local_offset += READSIZE;
 	} else {
 		MPI_File_read_at( fh, local_offset, read_buffer, remaining_buffer_count, MPI_CHAR, MPI_STATUS_IGNORE );
-		remaining_buffer_count = 0;	
+		local_offset += remaining_buffer_count;
+		remaining_buffer_count = 0;
 	}
 }
 
@@ -33,7 +34,7 @@ void MapReduce::write() {
 }
 
 void MapReduce::map() {
-	const char * delims = " .,\t\n";
+	const char * delims = ", .\t\n";
 	char * token = std::strtok(read_buffer, delims);
 	while(token != NULL) {
 		q_pairs.push({token,1});
@@ -54,14 +55,50 @@ void MapReduce::reduce() {
 			buckets[bucket_idx].insert(tmp_pair);
 		}
 		q_pairs.pop();
-	} 	
-	for(auto i = 0; i < world_size; ++i) {
-		for(auto it = buckets[i].begin(); it != buckets[i].end(); ++it) {
-
+	}
+	for(int send_rank = 0; send_rank < world_size; ++send_rank) { // rank i decides what is being sent
+		for(int recv_rank = 0; recv_rank < world_size; ++recv_rank) { // rank i might have to send to all ranks
+			int num_bcasts = buckets[recv_rank].size(), local_count = 0, global_count;
+			auto it = buckets[recv_rank].begin();
+			MPI_Bcast( &num_bcasts, 1, MPI_INT, send_rank, MPI_COMM_WORLD );
+			MPI_Barrier( MPI_COMM_WORLD );
+			for(int bcast_idx = 0; bcast_idx < num_bcasts; ++bcast_idx) {
+				std::string str;
+				int recv_size;
+				if(world_rank == send_rank) {
+					str = it->first;
+					std::cout << str << std::endl;
+					recv_size = str.size();
+					MPI_Barrier( MPI_COMM_WORLD );
+					MPI_Bcast( &recv_size, 1, MPI_INT, world_rank, MPI_COMM_WORLD );
+					MPI_Bcast( &str, recv_size, MPI_CHAR, world_rank, MPI_COMM_WORLD );
+					++it;
+				} else {
+										MPI_Barrier( MPI_COMM_WORLD );
+					MPI_Bcast( &recv_size, 1, MPI_INT, send_rank, MPI_COMM_WORLD );
+					MPI_Bcast( &str, recv_size, MPI_CHAR, send_rank, MPI_COMM_WORLD );
+					std::cout << str << std::endl;
+				}
+				auto found = buckets[recv_rank].find(str);
+				if(found != buckets[recv_rank].end()) {
+					local_count = buckets[recv_rank].at(str);
+					if(world_rank != send_rank) {
+						buckets[recv_rank].erase(str);
+					}
+				}
+				MPI_Reduce( &local_count, &global_count, 1, MPI_INT, MPI_SUM, recv_rank, MPI_COMM_WORLD );
+				if(world_rank == recv_rank) {
+					auto found = result.find(str);
+					if(found != result.end()) {
+						result.at(str) += global_count;
+					} else {
+						result.insert({str,global_count});
+					}
+				}
+			}
 		}
 	}
 }
-
 
 
 

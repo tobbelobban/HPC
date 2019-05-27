@@ -8,12 +8,12 @@ void MapReduce::init( const char * filename ) {
 
 	local_buff_size = file_size / world_size;
 	remaining_buffer_count = local_buff_size;
-	local_offset = local_buff_size * world_rank;
+	local_offset = remaining_buffer_count * world_rank;
 
-	if(local_buff_size >= READSIZE) {
-		read_buffer = new char[READSIZE];
+	if( local_buff_size >= READSIZE ) {
+		read_buffer = new char[READSIZE+1];
 	} else {
-		read_buffer = new char[local_buff_size];
+		read_buffer = new char[local_buff_size+1];
 	}
 }
 
@@ -38,6 +38,7 @@ void MapReduce::map() {
 	char * token = std::strtok(read_buffer, delims);
 	while(token != NULL) {
 		q_pairs.push({token,1});
+		std::cout << token << '\n';
 		token = std::strtok(NULL, " .\n\t");
 	}
 }
@@ -65,20 +66,22 @@ void MapReduce::reduce() {
 			for(int bcast_idx = 0; bcast_idx < num_bcasts; ++bcast_idx) {
 				std::string str;
 				int recv_size;
-				if(world_rank == send_rank) {
+				char * MPI_buffer;
+				if( world_rank == send_rank ) {
 					str = it->first;
-					std::cout << str << std::endl;
+					MPI_buffer = new char[str.size()+1];
+					std::strcpy(MPI_buffer,str.c_str());
 					recv_size = str.size();
-					MPI_Barrier( MPI_COMM_WORLD );
 					MPI_Bcast( &recv_size, 1, MPI_INT, world_rank, MPI_COMM_WORLD );
-					MPI_Bcast( &str, recv_size, MPI_CHAR, world_rank, MPI_COMM_WORLD );
+					MPI_Bcast( MPI_buffer, recv_size, MPI_CHAR, world_rank, MPI_COMM_WORLD );
 					++it;
 				} else {
-										MPI_Barrier( MPI_COMM_WORLD );
 					MPI_Bcast( &recv_size, 1, MPI_INT, send_rank, MPI_COMM_WORLD );
-					MPI_Bcast( &str, recv_size, MPI_CHAR, send_rank, MPI_COMM_WORLD );
-					std::cout << str << std::endl;
+					MPI_buffer = new char[recv_size+1];
+					MPI_Bcast( MPI_buffer, recv_size, MPI_CHAR, send_rank, MPI_COMM_WORLD );
+					str = MPI_buffer;
 				}
+				delete MPI_buffer;
 				auto found = buckets[recv_rank].find(str);
 				if(found != buckets[recv_rank].end()) {
 					local_count = buckets[recv_rank].at(str);
@@ -99,6 +102,3 @@ void MapReduce::reduce() {
 		}
 	}
 }
-
-
-

@@ -19,7 +19,7 @@ int main(int argc, char ** argv) {
 		mp.map();
 		mp.reduce();
 	}
-	std::cout << "Done" << std::endl;
+
 	MPI_Finalize();
 
 	return 0;

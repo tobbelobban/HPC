@@ -17,9 +17,8 @@ int main(int argc, char ** argv) {
 			mp.map();
 			mp.reduce();
 		}
-		// mp.write(argv[2]);
-		// mp.cleanup();
+		mp.write(argv[2]);
+		mp.cleanup();
 	MPI_Finalize();
-
 	return 0;
 }

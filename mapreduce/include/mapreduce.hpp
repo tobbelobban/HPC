@@ -19,6 +19,10 @@
 struct WordCount {
 	uint local_count;
 	char word[MAXWORDLEN];
+	WordCount(){};
+	WordCount(uint count, const char* c_ptr) : local_count(count) {
+		std::strcpy(word,c_ptr);
+	}
 };
 
 class MapReduce {
@@ -35,7 +39,7 @@ public:
 	char * read_buffer;
 
 	std::vector<std::string> token_v;
-
+	std::map<std::string,uint> result;
 	MPI_File fh;
 	MPI_Offset file_size;
 

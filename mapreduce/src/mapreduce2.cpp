@@ -46,30 +46,30 @@ void MapReduce::read() {
 }
 
 void MapReduce::write(const char * out_file) {
-	// auto it = result.begin();
-	// int wr_size = 0;
-	// std::string wr_str;
-	// wr_str.reserve(result.size()*5*sizeof(char));
-	// int wr_offset = 0;
-	// while(it != result.end()) {
-	// 	wr_size += sizeof(char)*(it->first.size()+std::to_string(it->second).size()+4);
-	// 	wr_str += '(' + it->first + ',' + std::to_string(it->second) + ")\n";
-	// 	++it;
-	// }
-	// if(world_rank == MASTER) {
-	// 	if(world_size > 1)
-	// 		MPI_Send(&wr_size, 1, MPI_INT, (world_rank+1)%world_size, 0, MPI_COMM_WORLD);
-	// } else {
-	// 	MPI_Recv(&wr_offset, 1, MPI_INT, (world_rank-1 > -1 ? world_rank-1 : world_size-1), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	// 	wr_offset += wr_size;
-	// 	if(world_rank != world_size-1)
-	// 		MPI_Send(&wr_offset, 1, MPI_INT, (world_rank+1)%world_size, 0, MPI_COMM_WORLD);
-	// }
-	// MPI_File out_fh;
-	// MPI_File_open(MPI_COMM_WORLD, out_file, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &out_fh);
-	// MPI_File_write_at(out_fh, wr_offset, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
-	// MPI_File_close(&out_fh);
-	// MPI_File_close(&fh);
+	auto it = result.begin();
+	int wr_size = 0;
+	std::string wr_str;
+	wr_str.reserve(result.size()*5*sizeof(char));
+	int wr_offset = 0;
+	while(it != result.end()) {
+		wr_size += sizeof(char)*(it->first.size()+std::to_string(it->second).size()+4);
+		wr_str += '(' + it->first + ',' + std::to_string(it->second) + ")\n";
+		++it;
+	}
+	if(world_rank == MASTER) {
+		if(world_size > 1)
+			MPI_Send(&wr_size, 1, MPI_INT, (world_rank+1)%world_size, 0, MPI_COMM_WORLD);
+	} else {
+		MPI_Recv(&wr_offset, 1, MPI_INT, (world_rank-1 > -1 ? world_rank-1 : world_size-1), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		wr_offset += wr_size;
+		if(world_rank != world_size-1)
+			MPI_Send(&wr_offset, 1, MPI_INT, (world_rank+1)%world_size, 0, MPI_COMM_WORLD);
+	}
+	MPI_File out_fh;
+	MPI_File_open(MPI_COMM_WORLD, out_file, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &out_fh);
+	MPI_File_write_at(out_fh, wr_offset, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
+	MPI_File_close(&out_fh);
+	MPI_File_close(&fh);
 }
 
 void MapReduce::map() {
@@ -117,19 +117,28 @@ void MapReduce::reduce() {
 
 	WordCount * recvwords = new WordCount[total_recv];
 	WordCount * sendwords = new WordCount[total_send];
-
+	int j = 0;
 	for(int i = 0; i < world_size; ++i) {
 		for(auto it = buckets[i].begin(); it != buckets[i].end(); ++it) {
-			WordCount tmp;
-			tmp.local_count = it->second;
-			std::strcpy(tmp.word,it->first.c_str());
-			tmp.word[MAXWORDLEN-1] = '\0';
-			sendwords[i] = tmp;
+			sendwords[j] = WordCount(it->second, it->first.c_str());
+			++j;
 		}
 	}
-	for(int i = 0; i < total_send; ++i)
-		std::cout << sendwords[i].word << '\n';
+
 	MPI_Alltoallv(sendwords, bucket_sizes, send_displs, type_mapred, recvwords, recv_counts, recv_displs, type_mapred, MPI_COMM_WORLD);
+
+	for(int i = 0; i < total_recv; ++i) {
+		std::string recv_str(recvwords[i].word);
+		auto found = result.find(recv_str);
+		if(found != result.end()) {
+			++result.at(recv_str);
+		} else {
+			result.insert({recv_str,recvwords[i].local_count});
+		}
+	}
+
+	delete recvwords;
+	delete sendwords;
 }
 
 

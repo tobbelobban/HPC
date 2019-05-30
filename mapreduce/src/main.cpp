@@ -104,12 +104,25 @@ void reduce(std::vector<std::pair<std::string,uint64_t>> bucket[]) {
 	// Wait until the process know how much data to recieve
 	MPI_Wait(&req[world_rank], MPI_STATUS_IGNORE);
 
-
+/*
 	if(world_rank == MASTER) {
 		for (i = 0; i < world_size; i++) {
 			std::cout << receive_count[i] << " from rank:" << i <<'\n';
 		}
 	}
+
+*/
+
+	int tot_size = 0;
+	for(i = 0; i < world_size; i++)
+		tot_size += receive_count[i];
+
+	//for(i = 0; i < world_rank; i++) {
+	//	MPI_Igatherv(send_temp, 2, MPI_INT, recv_temp,
+	 //                const int recvcounts[], const int displs[], MPI_Datatype recvtype, int root,
+	//                 MPI_Comm comm, MPI_Request * request)
+	//}
+
 
 
 

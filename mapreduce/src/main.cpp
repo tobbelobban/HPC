@@ -17,9 +17,8 @@ int main(int argc, char ** argv) {
 			mp.map();
 			mp.reduce();
 		}
-		MPI_Barrier( MPI_COMM_WORLD );
-		mp.write(argv[2]);
-		mp.cleanup();
+		// mp.write(argv[2]);
+		// mp.cleanup();
 	MPI_Finalize();
 
 	return 0;

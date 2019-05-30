@@ -3,6 +3,18 @@
 void MapReduce::init( const char * filename ) {
 	MPI_Comm_size( MPI_COMM_WORLD, &world_size );
 	MPI_Comm_rank( MPI_COMM_WORLD, &world_rank );
+
+	int count = 2;
+	int blocklens[] = {1, MAXWORDLEN};
+	MPI_Aint disp_array[] = { offsetof(WordCount, local_count), offsetof(WordCount, word)};
+	MPI_Datatype type_array[2] = {MPI_INT, MPI_CHAR};
+	MPI_Aint lb, extent;
+	MPI_Datatype oldtype;
+	MPI_Type_create_struct(count, blocklens, disp_array, type_array, &oldtype);
+	MPI_Type_get_extent(oldtype, &lb, &extent);
+	MPI_Type_create_resized(oldtype, lb, extent, &type_mapred);
+	MPI_Type_commit(&type_mapred);
+
 	MPI_File_open( MPI_COMM_WORLD, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh );
 	MPI_File_get_size( fh, &file_size );
 
@@ -34,97 +46,92 @@ void MapReduce::read() {
 }
 
 void MapReduce::write(const char * out_file) {
-	auto it = result.begin();
-	int wr_size = 0;
-	std::string wr_str;
-	wr_str.reserve(result.size()*5*sizeof(char));
-	int wr_offset = 0;
-	while(it != result.end()) {
-		wr_size += sizeof(char)*(it->first.size()+std::to_string(it->second).size()+4);
-		wr_str += '(' + it->first + ',' + std::to_string(it->second) + ")\n";
-		++it;
-	}
-	if(world_rank == MASTER) {
-		if(world_size > 1)
-			MPI_Send(&wr_size, 1, MPI_INT, (world_rank+1)%world_size, 0, MPI_COMM_WORLD);
-	} else {
-		MPI_Recv(&wr_offset, 1, MPI_INT, (world_rank-1 > -1 ? world_rank-1 : world_size-1), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-		wr_offset += wr_size;
-		if(world_rank != world_size-1)
-			MPI_Send(&wr_offset, 1, MPI_INT, (world_rank+1)%world_size, 0, MPI_COMM_WORLD);
-	}
-	std::cout << "here " << world_rank << '\n';
-	MPI_File out_fh;
-	MPI_File_open(MPI_COMM_WORLD, out_file, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &out_fh);
-	MPI_File_write_at(out_fh, wr_offset, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
-	MPI_File_close(&out_fh);
-	MPI_File_close(&fh);
+	// auto it = result.begin();
+	// int wr_size = 0;
+	// std::string wr_str;
+	// wr_str.reserve(result.size()*5*sizeof(char));
+	// int wr_offset = 0;
+	// while(it != result.end()) {
+	// 	wr_size += sizeof(char)*(it->first.size()+std::to_string(it->second).size()+4);
+	// 	wr_str += '(' + it->first + ',' + std::to_string(it->second) + ")\n";
+	// 	++it;
+	// }
+	// if(world_rank == MASTER) {
+	// 	if(world_size > 1)
+	// 		MPI_Send(&wr_size, 1, MPI_INT, (world_rank+1)%world_size, 0, MPI_COMM_WORLD);
+	// } else {
+	// 	MPI_Recv(&wr_offset, 1, MPI_INT, (world_rank-1 > -1 ? world_rank-1 : world_size-1), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	// 	wr_offset += wr_size;
+	// 	if(world_rank != world_size-1)
+	// 		MPI_Send(&wr_offset, 1, MPI_INT, (world_rank+1)%world_size, 0, MPI_COMM_WORLD);
+	// }
+	// MPI_File out_fh;
+	// MPI_File_open(MPI_COMM_WORLD, out_file, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &out_fh);
+	// MPI_File_write_at(out_fh, wr_offset, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
+	// MPI_File_close(&out_fh);
+	// MPI_File_close(&fh);
 }
 
 void MapReduce::map() {
+	token_v = std::vector<std::string>();
 	const char * delims = "/=<>, .\"\'\t\n";
 	char * token = std::strtok(read_buffer, delims);
 	while(token != NULL) {
-		q_pairs.push({token,1});
+		token_v.push_back(token);
 		token = std::strtok(NULL, delims);
 	}
 }
 
 void MapReduce::reduce() {
-	std::vector<std::map<std::string,int>> buckets(world_size, std::map<std::string,int>());
-	std::pair<std::string,int> tmp_pair;
+	std::vector<std::map<std::string,uint>> buckets(world_size, std::map<std::string,uint>());
 	int bucket_sizes[world_size] = {0};
-	while( !q_pairs.empty() ) {
-		tmp_pair = q_pairs.front();
-		uint64_t bucket_idx = std::hash<std::string>{}(tmp_pair.first) % world_size;
-		auto found = buckets[bucket_idx].find(tmp_pair.first);
-		if(found != buckets[bucket_idx].end()) {
-			++buckets[bucket_idx].at(tmp_pair.first);
+
+	// local reduce
+	for(uint i = 0; i < token_v.size(); ++i) {
+		uint64_t to_bucket = std::hash<std::string>{}(token_v[i]) % world_size;
+		auto found = buckets[to_bucket].find(token_v[i]);
+		if( found != buckets[to_bucket].end() ) {
+			++buckets[to_bucket].at(token_v[i]);
 		} else {
-			buckets[bucket_idx].insert(tmp_pair);
-			++bucket_sizes[bucket_idx];
-		}
-		q_pairs.pop();
-	}
-
-	int recv_count;
-	MPI_Request reduce_reqs[world_size];
-	for(int i = 0; i < world_size; ++i)
-		MPI_Ireduce(&bucket_sizes[i], &recv_count, 1, MPI_INT, MPI_SUM, i, MPI_COMM_WORLD, &reduce_reqs[i]);
-	MPI_Wait( &reduce_reqs[world_rank], MPI_STATUS_IGNORE );
-	MPI_Request * send_reqs[world_size];
-	for(int recv_rank = 0; recv_rank < world_size; ++recv_rank) {
-		int count = 0;
-		send_reqs[recv_rank] = new MPI_Request[bucket_sizes[recv_rank]];
-
-		auto it = buckets[recv_rank].begin();
-		while(it != buckets[recv_rank].end()) {
-			MPI_Isend(it->first.c_str(), it->first.size(), MPI_CHAR, recv_rank, it->second, MPI_COMM_WORLD, &send_reqs[recv_rank][count]);
-			++count;
-			++it;
+			buckets[to_bucket].insert({token_v[i],1});
+			++bucket_sizes[to_bucket];
 		}
 	}
 
-	int count = 0, recv_size;
+	//global reduce
+	int recv_counts[world_size];
+	int send_displs[world_size];
+	int recv_displs[world_size];
+	int total_recv = 0;
+	int total_send = 0;
 
-	while(count < recv_count) {
-		MPI_Status sts;
-		MPI_Probe( MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &sts);
-		MPI_Get_count(&sts, MPI_CHAR, &recv_size);
-		char * tmp_buff = new char[recv_size+sizeof(char)];
-		tmp_buff[recv_size] = '\0';
-		MPI_Recv(tmp_buff, recv_size, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-		std::string str(tmp_buff);
-		delete tmp_buff;
-		auto found = result.find(str);
-		if(found != result.end()) {
-			result.at(str) += sts.MPI_TAG;
-		} else {
-			result.insert({str,sts.MPI_TAG});
-		}
-		++count;
+	MPI_Alltoall( bucket_sizes, 1, MPI_INT, recv_counts, 1, MPI_INT, MPI_COMM_WORLD );
+
+	for(int i = 0; i < world_size; ++i) {
+		recv_displs[i] = total_recv;
+		total_recv += recv_counts[i];
+
+		send_displs[i] = total_send;
+		total_send += bucket_sizes[i];
 	}
+
+	WordCount * recvwords = new WordCount[total_recv];
+	WordCount * sendwords = new WordCount[total_send];
+
+	for(int i = 0; i < world_size; ++i) {
+		for(auto it = buckets[i].begin(); it != buckets[i].end(); ++it) {
+			WordCount tmp;
+			tmp.local_count = it->second;
+			std::strcpy(tmp.word,it->first.c_str());
+			tmp.word[MAXWORDLEN-1] = '\0';
+			sendwords[i] = tmp;
+		}
+	}
+	for(int i = 0; i < total_send; ++i)
+		std::cout << sendwords[i].word << '\n';
+	MPI_Alltoallv(sendwords, bucket_sizes, send_displs, type_mapred, recvwords, recv_counts, recv_displs, type_mapred, MPI_COMM_WORLD);
 }
+
 
 void MapReduce::cleanup() {
 	delete read_buffer;

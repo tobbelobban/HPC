@@ -14,17 +14,28 @@
 
 #define MASTER 0
 #define READSIZE 64000000
+#define MAXWORDLEN 100
+
+struct WordCount {
+	uint local_count;
+	char word[MAXWORDLEN];
+};
 
 class MapReduce {
 public:
+
+	MPI_Datatype type_mapred;
+
 	int world_rank;
 	int world_size;
-	int file_offset;
-	int read_size;
-	int remaining_read;
+
+	uint64_t file_offset;
+	uint64_t read_size;
+	uint64_t remaining_read;
 	char * read_buffer;
-	std::queue<std::pair<std::string,int> > q_pairs;
-	std::map<std::string,int> result;
+
+	std::vector<std::string> token_v;
+
 	MPI_File fh;
 	MPI_Offset file_size;
 

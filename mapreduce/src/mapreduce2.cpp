@@ -53,7 +53,7 @@ void MapReduce::write(const char * out_file) {
 		if(world_rank != world_size-1)
 			MPI_Send(&wr_offset, 1, MPI_INT, (world_rank+1)%world_size, 0, MPI_COMM_WORLD);
 	}
-
+	std::cout << "here " << world_rank << '\n';
 	MPI_File out_fh;
 	MPI_File_open(MPI_COMM_WORLD, out_file, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &out_fh);
 	MPI_File_write_at(out_fh, wr_offset, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
@@ -92,7 +92,6 @@ void MapReduce::reduce() {
 	for(int i = 0; i < world_size; ++i)
 		MPI_Ireduce(&bucket_sizes[i], &recv_count, 1, MPI_INT, MPI_SUM, i, MPI_COMM_WORLD, &reduce_reqs[i]);
 	MPI_Wait( &reduce_reqs[world_rank], MPI_STATUS_IGNORE );
-
 	MPI_Request * send_reqs[world_size];
 	for(int recv_rank = 0; recv_rank < world_size; ++recv_rank) {
 		int count = 0;

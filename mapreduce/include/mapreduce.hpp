@@ -4,18 +4,16 @@
 #include<fstream>
 #include<iostream>
 #include<mpi.h>
-#include<math.h>
 #include<string>
 #include<map>
 #include<vector>
-#include<queue>
 #include<cstring>
-#include <sstream>
 
 #define MASTER 0
-#define READSIZE 64000000
+#define READSIZE 67108864
 #define MAXWORDLEN 300
 
+// struct for MPI 
 struct WordCount {
 	uint local_count;
 	char word[MAXWORDLEN];
@@ -41,6 +39,7 @@ public:
 	std::vector<std::string> token_v;
 	std::map<std::string,uint> result;
 	MPI_File fh;
+	MPI_File out_fh;
 	MPI_Offset file_size;
 
 	void init(const char *);

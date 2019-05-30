@@ -10,7 +10,7 @@ CFLAGS = -I./include -g -Wall -O3 -std=c++11
 all: dir $(BIN)/$(TARGET)
 
 run:
-	mpirun $(BIN)/$(TARGET)
+	mpirun -n 5 $(BIN)/$(TARGET) ./test/test1.txt output
 
 dir: ${BIN}
 
@@ -21,7 +21,7 @@ ${BIN}:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BIN)/$(TARGET): $(OBJ)
-	$(CC) -o $@ $^ $(LDFLAGS) 
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 .PHONY: clean
 clean:

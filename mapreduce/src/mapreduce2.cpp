@@ -51,29 +51,31 @@ void MapReduce::read() {
 }
 
 void MapReduce::write(const char * out_file) {
-	auto it = result.begin();
-	int wr_size = 0;
+	// keep track of how long our string is
 	std::string wr_str;
-	wr_str.reserve(result.size()*5*sizeof(char));
-	int wr_offset = 0;
+	uint wr_size = 0;
+	// rough estimate of how much we will write
+	wr_str.reserve(result.size()*MAXWORDLEN*sizeof(char));
+
+	// create string
+	auto it = result.begin();
 	while(it != result.end()) {
 		wr_size += sizeof(char)*(it->first.size()+std::to_string(it->second).size()+4);
 		wr_str += '(' + it->first + ',' + std::to_string(it->second) + ")\n";
 		++it;
 	}
-	if(world_rank == MASTER) {
-		if(world_size > 1)
-			MPI_Send(&wr_size, 1, MPI_INT, (world_rank+1)%world_size, 0, MPI_COMM_WORLD);
-	} else {
-		MPI_Recv(&wr_offset, 1, MPI_INT, (world_rank-1 > -1 ? world_rank-1 : world_size-1), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-		wr_offset += wr_size;
-		if(world_rank != world_size-1)
-			MPI_Send(&wr_offset, 1, MPI_INT, (world_rank+1)%world_size, 0, MPI_COMM_WORLD);
-	}
 
+	// find out our offset into write file
+	uint write_counts[world_size];
+	int wr_offset = 0;
+	MPI_Allgather( &wr_size, 1, MPI_INT, write_counts, 1, MPI_INT, MPI_COMM_WORLD );
+	for(int i = 0; i < world_rank; ++i)
+		wr_offset += write_counts[i];
+
+	// now we write to file 
 	MPI_File_open(MPI_COMM_WORLD, out_file, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &out_fh);
-	MPI_File_write_at(out_fh, wr_offset, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
-
+	MPI_File_seek( out_fh, wr_offset, MPI_SEEK_SET );
+	MPI_File_write_all( out_fh, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
 }
 
 void MapReduce::map() {
@@ -166,7 +168,7 @@ void MapReduce::reduce() {
 
 
 void MapReduce::cleanup() {
-	// let's tidy up so that valgrind is happy 
+	// let's tidy up so that valgrind is happy
 	delete read_buffer;
 	MPI_File_close(&out_fh);
 	MPI_File_close(&fh);

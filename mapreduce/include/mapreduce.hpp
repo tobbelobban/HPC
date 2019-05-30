@@ -14,7 +14,7 @@
 
 #define MASTER 0
 #define READSIZE 64000000
-#define MAXWORDLEN 100
+#define MAXWORDLEN 300
 
 struct WordCount {
 	uint local_count;

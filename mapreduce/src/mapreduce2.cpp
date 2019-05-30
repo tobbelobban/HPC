@@ -77,6 +77,11 @@ void MapReduce::map() {
 	const char * delims = "/=<>, .\"\'\t\n";
 	char * token = std::strtok(read_buffer, delims);
 	while(token != NULL) {
+		auto len = std::strlen(token);
+		if(len >= MAXWORDLEN) {
+			token = std::strtok(NULL, delims);
+			continue;
+		}
 		token_v.push_back(token);
 		token = std::strtok(NULL, delims);
 	}
@@ -109,21 +114,25 @@ void MapReduce::reduce() {
 
 	for(int i = 0; i < world_size; ++i) {
 		recv_displs[i] = total_recv;
-		total_recv += recv_counts[i];
-
 		send_displs[i] = total_send;
+		total_recv += recv_counts[i];
 		total_send += bucket_sizes[i];
 	}
 
 	WordCount * recvwords = new WordCount[total_recv];
 	WordCount * sendwords = new WordCount[total_send];
+
 	int j = 0;
+
+	MPI_Barrier(MPI_COMM_WORLD);
 	for(int i = 0; i < world_size; ++i) {
 		for(auto it = buckets[i].begin(); it != buckets[i].end(); ++it) {
 			sendwords[j] = WordCount(it->second, it->first.c_str());
 			++j;
+
 		}
 	}
+
 
 	MPI_Alltoallv(sendwords, bucket_sizes, send_displs, type_mapred, recvwords, recv_counts, recv_displs, type_mapred, MPI_COMM_WORLD);
 

@@ -8,6 +8,7 @@
 #include<map>
 #include<vector>
 #include<cstring>
+#include <omp.h>
 
 #define MASTER 0
 #define READSIZE 67108864

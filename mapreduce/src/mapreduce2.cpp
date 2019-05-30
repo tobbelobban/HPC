@@ -84,19 +84,35 @@ void MapReduce::map() {
 
 	// delims is an array of chars we wish to split strings by
 	const char * delims = "/=<>, .\"\'\t\n";
-	char * token = std::strtok(read_buffer, delims);
+
+	// TODO: change this so the chunk is correct
+	int chunk = (int) READSIZE / omp_get_num_threads();
+
+	#pragma omp parallel
+{
+	// std::cout << omp_get_num_threads() << " : " << omp_get_thread_num() << std::endl;
+	int from = chunk*omp_get_thread_num();
+	int to = from + chunk;
+	char * temp_read_buffer = &read_buffer[from];
+	char * token = std::strtok(temp_read_buffer, delims);
+
 
 	// get all words according to delims
-	while(token != NULL) {
+	while(token != NULL && token < &temp_read_buffer[to]) {
 		auto len = std::strlen(token);
 		// we do not allowed wordsd longer than MAXWORDLEN
 		if(len >= MAXWORDLEN) {
 			token = std::strtok(NULL, delims);
 			continue;
 		}
+
+		// TODO: find thread safe structure or create several
 		token_v.push_back(token);
 		token = std::strtok(NULL, delims);
 	}
+}
+
+
 }
 
 void MapReduce::reduce() {

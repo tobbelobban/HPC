@@ -13,7 +13,7 @@
 #define READSIZE 67108864
 #define MAXWORDLEN 300
 
-// struct for MPI 
+// struct for MPI
 struct WordCount {
 	uint local_count;
 	char word[MAXWORDLEN];
@@ -25,8 +25,11 @@ struct WordCount {
 
 class MapReduce {
 public:
-
+	MPI_Datatype oldtype;
 	MPI_Datatype type_mapred;
+	MPI_File fh;
+	MPI_File out_fh;
+	MPI_Offset file_size;
 
 	int world_rank;
 	int world_size;
@@ -38,15 +41,12 @@ public:
 
 	std::vector<std::string> token_v;
 	std::map<std::string,uint> result;
-	MPI_File fh;
-	MPI_File out_fh;
-	MPI_Offset file_size;
 
 	void init(const char *);
 	void read();
-	void write(const char *);
 	void map();
 	void reduce();
+	void write(const char *);
 	void cleanup();
 };
 

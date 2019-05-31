@@ -11,7 +11,6 @@ void MapReduce::init( const char * filename ) {
 	MPI_Aint disp_array[] = { offsetof(WordCount, local_count), offsetof(WordCount, word)};
 	MPI_Datatype type_array[2] = {MPI_INT, MPI_CHAR};
 	MPI_Aint lb, extent;
-	MPI_Datatype oldtype;
 	MPI_Type_create_struct(count, blocklens, disp_array, type_array, &oldtype);
 	MPI_Type_get_extent(oldtype, &lb, &extent);
 	MPI_Type_create_resized(oldtype, lb, extent, &type_mapred);
@@ -48,34 +47,6 @@ void MapReduce::read() {
 		read_buffer[remaining_read] = '\0';
 		remaining_read = 0;
 	}
-}
-
-void MapReduce::write(const char * out_file) {
-	// keep track of how long our string is
-	std::string wr_str;
-	uint wr_size = 0;
-	// rough estimate of how much we will write
-	wr_str.reserve(result.size()*MAXWORDLEN*sizeof(char));
-
-	// create string
-	auto it = result.begin();
-	while(it != result.end()) {
-		wr_size += sizeof(char)*(it->first.size()+std::to_string(it->second).size()+4);
-		wr_str += '(' + it->first + ',' + std::to_string(it->second) + ")\n";
-		++it;
-	}
-
-	// find out our offset into write file
-	uint write_counts[world_size];
-	int wr_offset = 0;
-	MPI_Allgather( &wr_size, 1, MPI_INT, write_counts, 1, MPI_INT, MPI_COMM_WORLD );
-	for(int i = 0; i < world_rank; ++i)
-		wr_offset += write_counts[i];
-
-	// now we write to file 
-	MPI_File_open(MPI_COMM_WORLD, out_file, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &out_fh);
-	MPI_File_seek( out_fh, wr_offset, MPI_SEEK_SET );
-	MPI_File_write_all( out_fh, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
 }
 
 void MapReduce::map() {
@@ -166,10 +137,41 @@ void MapReduce::reduce() {
 	delete sendwords;
 }
 
+void MapReduce::write(const char * out_file) {
+	// keep track of how long our string is
+	std::string wr_str;
+	uint wr_size = 0;
+	// rough estimate of how much we will write
+	wr_str.reserve(result.size()*MAXWORDLEN*sizeof(char));
+
+	// create string
+	auto it = result.begin();
+	while(it != result.end()) {
+		wr_size += sizeof(char)*(it->first.size()+std::to_string(it->second).size()+4);
+		wr_str += '(' + it->first + ',' + std::to_string(it->second) + ")\n";
+		++it;
+	}
+
+	// find out our offset into write file
+	uint write_counts[world_size];
+	int wr_offset = 0;
+	MPI_Allgather( &wr_size, 1, MPI_INT, write_counts, 1, MPI_INT, MPI_COMM_WORLD );
+	for(int i = 0; i < world_rank; ++i)
+		wr_offset += write_counts[i];
+
+	// now we write to file
+	MPI_File_open(MPI_COMM_WORLD, out_file, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &out_fh);
+	MPI_File_seek( out_fh, wr_offset, MPI_SEEK_SET );
+	MPI_File_write_all( out_fh, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
+}
 
 void MapReduce::cleanup() {
 	// let's tidy up so that valgrind is happy
 	delete read_buffer;
+
+	// and close our files 
+	MPI_Type_free( &type_mapred );
+	MPI_Type_free( &oldtype );
 	MPI_File_close(&out_fh);
 	MPI_File_close(&fh);
 }

@@ -1,6 +1,7 @@
 #ifndef _MAPREDUCE_H
 #define _MAPREDUCE_H
 
+#include<cstddef>
 #include<fstream>
 #include<iostream>
 #include<mpi.h>
@@ -10,7 +11,7 @@
 #include<cstring>
 
 #define MASTER 0
-#define READSIZE 67108864
+#define READSIZE 67108864 	// 64 MiB
 #define MAXWORDLEN 300
 
 // struct for MPI
@@ -31,6 +32,7 @@ public:
 	MPI_File out_fh;
 	MPI_Offset file_size;
 
+	uint wordlen = MAXWORDLEN;
 	int world_rank;
 	int world_size;
 

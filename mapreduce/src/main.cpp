@@ -9,7 +9,7 @@ void update_times( const double * start_time, const double * end_time, double * 
 	*prev_avg_time = *avg_time;
 	*avg_time = *avg_time + ( (*end_time - *start_time) - *avg_time ) / (iteration+1);
 	*stddev_time = *stddev_time + ( (*end_time - *start_time) - *avg_time ) * ( (*end_time - *start_time) - *prev_avg_time);
-	*stddev_time = std::sqrt(*stddev_time / (repeat - 1));
+	*stddev_time = sqrt(*stddev_time / (repeat - 1));
 }
 
 int main(int argc, char ** argv) {
@@ -28,18 +28,32 @@ int main(int argc, char ** argv) {
 	MPI_Comm_rank( MPI_COMM_WORLD, &world_rank );
 	MPI_Comm_size( MPI_COMM_WORLD, &world_size );
 
-	while( (opt = getopt(argc, argv, "r:")) != -1 ) {
+	while( (opt = getopt(argc, argv, "w:r:")) != -1 ) {
 		switch ( opt ) {
 			case 'r':
 					repeat = atoi(optarg);
 					if( repeat < 1 ) {
 						if( world_rank == MASTER )
-							std::cout << "Please supply positive repeat count." << std::endl;
+							std::cout << "Please supply positive repeat count with flag -r." << std::endl;
+						MPI_Finalize();
+						exit(1);
+					}
+					break;
+			case 'w':
+					mp.wordlen = atoi(optarg);
+					if( mp.wordlen < 1 ) {
+						if( world_rank == MASTER )
+							std::cout << "Please supply positive word length with flag -w" << std::endl;
 						MPI_Finalize();
 						exit(1);
 					}
 					break;
 			default:
+					if( world_rank == MASTER ) {
+						std::cout << "Unknown flag: " << opt << std::endl;
+					}
+					MPI_Finalize();
+					exit(1);
 					break;
 		}
 	}

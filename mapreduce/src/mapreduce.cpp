@@ -60,8 +60,8 @@ void MapReduce::map() {
 	// get all words according to delims
 	while(token != NULL) {
 		auto len = std::strlen(token);
-		// we do not allowed wordsd longer than MAXWORDLEN
-		if(len >= MAXWORDLEN) {
+		// we do not allowed wordsd longer than wordlen
+		if(len > wordlen) {
 			token = std::strtok(NULL, delims);
 			continue;
 		}
@@ -169,7 +169,7 @@ void MapReduce::cleanup() {
 	// let's tidy up so that valgrind is happy
 	delete read_buffer;
 
-	// and close our files 
+	// and close our files
 	MPI_Type_free( &type_mapred );
 	MPI_Type_free( &oldtype );
 	MPI_File_close(&out_fh);

@@ -9,7 +9,6 @@ void update_times( const double * start_time, const double * end_time, double * 
 	*prev_avg_time = *avg_time;
 	*avg_time = *avg_time + ( (*end_time - *start_time) - *avg_time ) / (iteration+1);
 	*stddev_time = *stddev_time + ( (*end_time - *start_time) - *avg_time ) * ( (*end_time - *start_time) - *prev_avg_time);
-	*stddev_time = sqrt(*stddev_time / (repeat - 1));
 }
 
 int main(int argc, char ** argv) {
@@ -19,10 +18,11 @@ int main(int argc, char ** argv) {
 	MapReduce mp;
 
 	// time keepers
-	double avg_runtime = 0.0, avg_read_time = 0.0, avg_map_time = 0.0, avg_reduce_time = 0.0, avg_write_time = 0.0;
-	double prev_avg_runtime = 0.0, prev_avg_read_time = 0.0, prev_avg_map_time = 0.0, prev_avg_reduce_time = 0.0, prev_avg_write_time = 0.0;
-	double stddev_runtime = 0.0, stddev_read_time = 0.0, stddev_map_time = 0.0, stddev_reduce_time = 0.0, stddev_write_time = 0.0;
+	double avg_runtime = 0.0, avg_read_map_time = 0.0, avg_reduce_time = 0.0, avg_write_time = 0.0;
+	double prev_avg_runtime = 0.0, prev_avg_read_map_time = 0.0, prev_avg_reduce_time = 0.0, prev_avg_write_time = 0.0;
+	double stddev_runtime = 0.0, stddev_read_map_time = 0.0, stddev_reduce_time = 0.0, stddev_write_time = 0.0;
 	double start_time, end_time, tmp_start_time, tmp_end_time;
+
 
 	MPI_Init( &argc, &argv );
 	MPI_Comm_rank( MPI_COMM_WORLD, &world_rank );
@@ -74,24 +74,21 @@ int main(int argc, char ** argv) {
 		mp.init(argv[optind]);
 
 		// continue reading -> mapping until out of data
+		tmp_start_time = MPI_Wtime();
 		while( mp.remaining_read > 0 ) {
-			tmp_start_time = MPI_Wtime();
 			mp.read();
-			tmp_end_time = MPI_Wtime();
-			// update read times
-			update_times( &tmp_start_time, &tmp_end_time, &avg_read_time, &prev_avg_read_time, &stddev_read_time, iteration, repeat );
-
-			tmp_start_time = MPI_Wtime();
 			mp.map();
-			tmp_end_time = MPI_Wtime();
-			// update map times
-			update_times( &tmp_start_time, &tmp_end_time, &avg_map_time, &prev_avg_map_time, &stddev_map_time, iteration, repeat );
 		}
+		tmp_end_time = MPI_Wtime();
+
+		//update read & map times
+		update_times( &tmp_start_time, &tmp_end_time, &avg_read_map_time, &prev_avg_read_map_time, &stddev_read_map_time, iteration, repeat );
 
 		// finally we reduce
 		tmp_start_time = MPI_Wtime();
 		mp.reduce();
 		tmp_end_time = MPI_Wtime();
+
 		// update reduce times
 		update_times( &tmp_start_time, &tmp_end_time, &avg_reduce_time, &prev_avg_reduce_time, &stddev_reduce_time, iteration, repeat );
 
@@ -99,6 +96,7 @@ int main(int argc, char ** argv) {
 		tmp_start_time = MPI_Wtime();
 		mp.write(argv[optind+1]);
 		tmp_end_time = MPI_Wtime();
+
 		// update write times
 		update_times( &tmp_start_time, &tmp_end_time, &avg_write_time, &prev_avg_write_time, &stddev_write_time, iteration, repeat );
 
@@ -111,17 +109,22 @@ int main(int argc, char ** argv) {
 		// update total time
 		update_times( &start_time, &end_time, &avg_runtime, &prev_avg_runtime, &stddev_runtime, iteration, repeat );
 
-		if( world_rank == MASTER ) {
+		if( world_rank == MASTER)
 			std::cout << "run: " << iteration << "\t\t= " << end_time - start_time << 's' << std::endl;
-			std::cout << "avg. duration\t= " << avg_runtime << " ± " << stddev_runtime << std::endl;
-			std::cout << "avg. read\t= " << avg_read_time << " ± " << stddev_read_time << std::endl;
-			std::cout << "avg. map\t= " << avg_map_time << " ± " << stddev_map_time << std::endl;
-			std::cout << "avg. reduce\t= " << avg_reduce_time << " ± " << stddev_reduce_time << std::endl;
-			std::cout << "avg. write\t= " << avg_write_time << " ± " << stddev_write_time << std::endl;
-			std::cout << std::endl;
-		}
 	}
 
+	if( world_rank == MASTER ) {
+		stddev_runtime = sqrt(stddev_runtime / (repeat - 1));
+		stddev_read_map_time = sqrt(stddev_read_map_time / (repeat - 1));
+		stddev_reduce_time = sqrt(stddev_reduce_time / (repeat - 1));
+		stddev_write_time = sqrt(stddev_write_time / (repeat - 1));
+
+		std::cout << "avg. duration\t= " << avg_runtime << " ± " << stddev_runtime << std::endl;
+		std::cout << "avg. read&map\t= " << avg_read_map_time << " ± " << stddev_read_map_time << std::endl;
+		std::cout << "avg. reduce\t= " << avg_reduce_time << " ± " << stddev_reduce_time << std::endl;
+		std::cout << "avg. write\t= " << avg_write_time << " ± " << stddev_write_time << std::endl;
+		std::cout << std::endl;
+	}
 	// à la fin
 	MPI_Finalize();
 

@@ -11,7 +11,6 @@ void MapReduce::init( const char * filename ) {
 	MPI_Aint disp_array[] = { offsetof(WordCount, local_count), offsetof(WordCount, word)};
 	MPI_Datatype type_array[2] = {MPI_INT, MPI_CHAR};
 	MPI_Aint lb, extent;
-	MPI_Datatype oldtype;
 	MPI_Type_create_struct(count, blocklens, disp_array, type_array, &oldtype);
 	MPI_Type_get_extent(oldtype, &lb, &extent);
 	MPI_Type_create_resized(oldtype, lb, extent, &type_mapred);
@@ -50,6 +49,7 @@ void MapReduce::read() {
 	}
 }
 
+<<<<<<< HEAD:mapreduce/src/mapreduce2.cpp
 void MapReduce::write(const char * out_file) {
 	// keep track of how long our string is
 	std::string wr_str;
@@ -78,11 +78,14 @@ void MapReduce::write(const char * out_file) {
 	MPI_File_write_all( out_fh, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
 }
 
+=======
+>>>>>>> origin/toby:mapreduce/src/mapreduce.cpp
 void MapReduce::map() {
 	// vector that holds <word,1> pairs
 	token_v = std::vector<std::string>();
 
 	// delims is an array of chars we wish to split strings by
+<<<<<<< HEAD:mapreduce/src/mapreduce2.cpp
 	const char * delims = "/=<>, .\"\'\t\n";
 
 	// TODO: change this so the chunk is correct
@@ -107,6 +110,19 @@ void MapReduce::map() {
 		}
 
 		// TODO: find thread safe structure or create several
+=======
+	const char * delims = "&(){}!#%-+/=<>, .\"\'\t\n";
+	char * token = std::strtok(read_buffer, delims);
+
+	// get all words according to delims
+	while(token != NULL) {
+		auto len = std::strlen(token);
+		// we do not allowed wordsd longer than wordlen
+		if(len > wordlen) {
+			token = std::strtok(NULL, delims);
+			continue;
+		}
+>>>>>>> origin/toby:mapreduce/src/mapreduce.cpp
 		token_v.push_back(token);
 		token = std::strtok(NULL, delims);
 	}
@@ -147,6 +163,10 @@ void MapReduce::reduce() {
 	// prepare displacement arrays for mpi_alltoallv
 	for(int i = 0; i < world_size; ++i) {
 		recv_displs[i] = total_recv;
+<<<<<<< HEAD:mapreduce/src/mapreduce2.cpp
+=======
+		send_displs[i] = total_send;
+>>>>>>> origin/toby:mapreduce/src/mapreduce.cpp
 		total_recv += recv_counts[i];
 		total_send += bucket_sizes[i];
 	}
@@ -155,8 +175,11 @@ void MapReduce::reduce() {
 	WordCount * sendwords = new WordCount[total_send];
 
 	int word_count = 0;
+<<<<<<< HEAD:mapreduce/src/mapreduce2.cpp
 	int offset = 0;
 	MPI_Request req[world_size];
+=======
+>>>>>>> origin/toby:mapreduce/src/mapreduce.cpp
 	for(int i = 0; i < world_size; ++i) {
 		for(auto it = buckets[i].begin(); it != buckets[i].end(); ++it) {
 			sendwords[word_count] = WordCount(it->second, it->first.c_str());
@@ -169,8 +192,13 @@ void MapReduce::reduce() {
 		offset = word_count;
 	}
 
+<<<<<<< HEAD:mapreduce/src/mapreduce2.cpp
 	// Only wait for its own words
 	MPI_Wait(&req[world_rank], MPI_STATUS_IGNORE);
+=======
+	// this is our magical line of code <3
+	MPI_Alltoallv(sendwords, bucket_sizes, send_displs, type_mapred, recvwords, recv_counts, recv_displs, type_mapred, MPI_COMM_WORLD);
+>>>>>>> origin/toby:mapreduce/src/mapreduce.cpp
 
 	// finally compute total counts of all words
 	for(int i = 0; i < total_recv; ++i) {
@@ -187,10 +215,44 @@ void MapReduce::reduce() {
 	delete sendwords;
 }
 
+void MapReduce::write(const char * out_file) {
+	// keep track of how long our string is
+	std::string wr_str;
+	uint wr_size = 0;
+	// rough estimate of how much we will write
+	wr_str.reserve(result.size()*MAXWORDLEN*sizeof(char));
+
+	// create string
+	auto it = result.begin();
+	while(it != result.end()) {
+		wr_size += sizeof(char)*(it->first.size()+std::to_string(it->second).size()+4);
+		wr_str += '(' + it->first + ',' + std::to_string(it->second) + ")\n";
+		++it;
+	}
+
+	// find out our offset into write file
+	uint write_counts[world_size];
+	int wr_offset = 0;
+	MPI_Allgather( &wr_size, 1, MPI_INT, write_counts, 1, MPI_INT, MPI_COMM_WORLD );
+	for(int i = 0; i < world_rank; ++i)
+		wr_offset += write_counts[i];
+
+	// now we write to file
+	MPI_File_open(MPI_COMM_WORLD, out_file, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &out_fh);
+	MPI_File_seek( out_fh, wr_offset, MPI_SEEK_SET );
+	MPI_File_write_all( out_fh, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
+}
 
 void MapReduce::cleanup() {
 	// let's tidy up so that valgrind is happy
 	delete read_buffer;
+<<<<<<< HEAD:mapreduce/src/mapreduce2.cpp
+=======
+
+	// and close our files
+	MPI_Type_free( &type_mapred );
+	MPI_Type_free( &oldtype );
+>>>>>>> origin/toby:mapreduce/src/mapreduce.cpp
 	MPI_File_close(&out_fh);
 	MPI_File_close(&fh);
 }

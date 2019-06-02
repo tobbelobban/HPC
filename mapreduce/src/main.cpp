@@ -14,37 +14,6 @@ const int repeat ) {
 
 int main(int argc, char ** argv) {
 	int world_rank, world_size;
-<<<<<<< HEAD
-	MapReduce mp;
-
-	MPI_Init( &argc, &argv );
-	MPI_Comm_rank( MPI_COMM_WORLD, &world_rank );
-	MPI_Comm_size( MPI_COMM_WORLD, &world_size );
-	if( argc < 3 ) {
-		if(world_rank == MASTER) {
-			std::cout << "Usage: mpirun ./path-to-binary input.txt output.txt" << std::endl;
-		}
-		MPI_Finalize();
-		exit(1);
-	}
-
-	mp.init(argv[1]);
-
-	// continue reading -> mapping until out of data
-	while(mp.remaining_read > 0) {
-		mp.read();
-		mp.map();
-	}
-	// finally we reduce
-	mp.reduce();
-
-	// then write
-	mp.write(argv[2]);
-
-	// cleanup
-	mp.cleanup();
-
-=======
 	int repeat = 1;
 	int opt;
 	MapReduce mp;
@@ -157,7 +126,6 @@ int main(int argc, char ** argv) {
 		std::cout << "avg. write\t= " << avg_write_time << " ± " << stddev_write_time << std::endl;
 		std::cout << std::endl;
 	}
->>>>>>> origin/toby
 	// à la fin
 	MPI_Finalize();
 

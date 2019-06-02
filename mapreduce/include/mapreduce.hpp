@@ -28,13 +28,17 @@ class MapReduce {
 public:
 	MPI_Datatype oldtype;
 	MPI_Datatype type_mapred;
+	MPI_Datatype read_type, chunk_type;
 	MPI_File fh;
 	MPI_File out_fh;
 	MPI_Offset file_size;
 
 	uint wordlen = MAXWORDLEN;
-	int world_rank;
-	int world_size;
+	uint64_t world_rank;
+	uint64_t world_size;
+
+	int set_world_size;
+	int set_world_rank;
 
 	uint64_t file_offset;
 	uint64_t read_size;

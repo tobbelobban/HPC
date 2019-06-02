@@ -2,8 +2,11 @@
 
 void MapReduce::init( const char * filename ) {
 	// get world size and rank
-	MPI_Comm_size( MPI_COMM_WORLD, &world_size );
-	MPI_Comm_rank( MPI_COMM_WORLD, &world_rank );
+	MPI_Comm_size( MPI_COMM_WORLD, &set_world_size );
+	MPI_Comm_rank( MPI_COMM_WORLD, &set_world_rank );
+
+	world_size = set_world_size;
+	world_rank = set_world_rank;
 
 	// create own MPI Dataype for message passing
 	int count = 2;
@@ -28,39 +31,34 @@ void MapReduce::init( const char * filename ) {
 	}
 	// maximum buffer size is 64 MiB (64 * 1024 * 1024)
 	remaining_read = read_size;
-	if(read_size > READSIZE) {
-		read_buffer = new char[READSIZE+sizeof(char)];
-	} else {
-		read_buffer = new char[read_size+sizeof(char)]; // in this case each process does a single read
-	}
+	read_buffer = new char[READSIZE+sizeof(char)];
+	read_buffer[READSIZE] = '\0';
+
+	// create type for reading
+	MPI_Type_contiguous( READSIZE, MPI_CHAR, &chunk_type );
+	MPI_Type_create_resized( chunk_type, 0, READSIZE*world_size, &read_type );
+	//MPI_Type_commit( &chunk_type );
+	MPI_Type_commit( &read_type );
+
+	MPI_File_set_view( fh, READSIZE*world_rank, MPI_CHAR, read_type, "native", MPI_INFO_NULL );
+	// vector that holds <word,1> pairs
+	token_v = std::vector<std::string>();
 }
 
 void MapReduce::read() {
-	if(remaining_read > READSIZE) {
-		MPI_File_read_at( fh, file_offset, read_buffer, READSIZE, MPI_CHAR, MPI_STATUS_IGNORE );
-		file_offset += READSIZE;
-		remaining_read -= READSIZE;
-		read_buffer[READSIZE] = '\0';
-	} else {
-		MPI_File_read_at( fh, file_offset, read_buffer, remaining_read, MPI_CHAR, MPI_STATUS_IGNORE );
-		file_offset = read_size;
-		read_buffer[remaining_read] = '\0';
-		remaining_read = 0;
-	}
+	MPI_File_read_all( fh, read_buffer, 1, read_type, MPI_STATUS_IGNORE );
+	remaining_read -= READSIZE;
 }
 
 void MapReduce::map() {
-	// vector that holds <word,1> pairs
-	token_v = std::vector<std::string>();
-
 	// delims is an array of chars we wish to split strings by
-	const char * delims = "&(){}!#%-+/=<>, .\"\'\t\n";
+	const char * delims = ";:!#¤?^*[]$_&(){}!#%-+/=<>, .\"\'\t\n";
 	char * token = std::strtok(read_buffer, delims);
 
 	// get all words according to delims
 	while(token != NULL) {
 		auto len = std::strlen(token);
-		// we do not allowed wordsd longer than wordlen
+		// we do not allowed words longer than wordlen
 		if(len > wordlen) {
 			token = std::strtok(NULL, delims);
 			continue;
@@ -101,7 +99,7 @@ void MapReduce::reduce() {
 	MPI_Alltoall( bucket_sizes, 1, MPI_INT, recv_counts, 1, MPI_INT, MPI_COMM_WORLD );
 
 	// prepare displacement arrays for mpi_alltoallv
-	for(int i = 0; i < world_size; ++i) {
+	for(uint i = 0; i < world_size; ++i) {
 		recv_displs[i] = total_recv;
 		send_displs[i] = total_send;
 		total_recv += recv_counts[i];
@@ -112,7 +110,7 @@ void MapReduce::reduce() {
 	WordCount * sendwords = new WordCount[total_send];
 
 	int word_count = 0;
-	for(int i = 0; i < world_size; ++i) {
+	for(uint i = 0; i < world_size; ++i) {
 		for(auto it = buckets[i].begin(); it != buckets[i].end(); ++it) {
 			sendwords[word_count] = WordCount(it->second, it->first.c_str());
 			++word_count;
@@ -120,7 +118,8 @@ void MapReduce::reduce() {
 	}
 
 	// this is our magical line of code <3
-	MPI_Alltoallv(sendwords, bucket_sizes, send_displs, type_mapred, recvwords, recv_counts, recv_displs, type_mapred, MPI_COMM_WORLD);
+	MPI_Alltoallv(sendwords, bucket_sizes, send_displs, type_mapred, recvwords, recv_counts, recv_displs, type_mapred,
+MPI_COMM_WORLD);
 
 	// finally compute total counts of all words
 	for(int i = 0; i < total_recv; ++i) {
@@ -156,7 +155,7 @@ void MapReduce::write(const char * out_file) {
 	uint write_counts[world_size];
 	int wr_offset = 0;
 	MPI_Allgather( &wr_size, 1, MPI_INT, write_counts, 1, MPI_INT, MPI_COMM_WORLD );
-	for(int i = 0; i < world_rank; ++i)
+	for(uint i = 0; i < world_rank; ++i)
 		wr_offset += write_counts[i];
 
 	// now we write to file

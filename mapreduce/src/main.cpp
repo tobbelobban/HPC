@@ -5,7 +5,8 @@
 #include "mapreduce.hpp"
 
 
-void update_times( const double * start_time, const double * end_time, double * avg_time, double * prev_avg_time, double * stddev_time, const int iteration, const int repeat ) {
+void update_times( const double * start_time, const double * end_time, double * avg_time, double * prev_avg_time, double * stddev_time, const int iteration,
+const int repeat ) {
 	*prev_avg_time = *avg_time;
 	*avg_time = *avg_time + ( (*end_time - *start_time) - *avg_time ) / (iteration+1);
 	*stddev_time = *stddev_time + ( (*end_time - *start_time) - *avg_time ) * ( (*end_time - *start_time) - *prev_avg_time);

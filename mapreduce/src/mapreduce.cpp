@@ -54,7 +54,7 @@ void MapReduce::map() {
 	token_v = std::vector<std::string>();
 
 	// delims is an array of chars we wish to split strings by
-	const char * delims = "/=<>, .\"\'\t\n";
+	const char * delims = "&(){}!#%-+/=<>, .\"\'\t\n";
 	char * token = std::strtok(read_buffer, delims);
 
 	// get all words according to delims

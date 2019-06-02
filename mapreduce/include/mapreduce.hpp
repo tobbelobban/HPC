@@ -9,6 +9,8 @@
 #include<map>
 #include<vector>
 #include<cstring>
+#include <omp.h>
+
 
 #define MASTER 0
 #define READSIZE 67108864 	// 64 MiB
@@ -39,9 +41,14 @@ public:
 	uint64_t file_offset;
 	uint64_t read_size;
 	uint64_t remaining_read;
+
+	// Thread meta-data
+	uint64_t thread_read;
+	int num_threads;
+
 	char * read_buffer;
 
-	std::vector<std::string> token_v;
+	std::vector<std::vector<std::string>> token_v;
 	std::map<std::string,uint> result;
 
 	void init(const char *);

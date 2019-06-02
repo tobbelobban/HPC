@@ -33,6 +33,22 @@ void MapReduce::init( const char * filename ) {
 	} else {
 		read_buffer = new char[read_size+sizeof(char)]; // in this case each process does a single read
 	}
+
+	// vector that holds <word,1> pairs
+	token_v = std::vector<std::vector<std::string>>();
+	num_threads = 1;
+
+	// Add a separate vector to each thread
+	#pragma omp parallel
+	{
+		if(omp_get_thread_num() == 0)
+			num_threads = omp_get_num_threads();
+	}
+
+	int i;
+	for(i = 0; i < num_threads; i++)
+		token_v.push_back(std::vector<std::string>());
+
 }
 
 void MapReduce::read() {
@@ -41,32 +57,47 @@ void MapReduce::read() {
 		file_offset += READSIZE;
 		remaining_read -= READSIZE;
 		read_buffer[READSIZE] = '\0';
+		thread_read = READSIZE;
 	} else {
 		MPI_File_read_at( fh, file_offset, read_buffer, remaining_read, MPI_CHAR, MPI_STATUS_IGNORE );
 		file_offset = read_size;
 		read_buffer[remaining_read] = '\0';
+		thread_read = remaining_read;
 		remaining_read = 0;
 	}
 }
 
 void MapReduce::map() {
-	// vector that holds <word,1> pairs
-	token_v = std::vector<std::string>();
+
 
 	// delims is an array of chars we wish to split strings by
 	const char * delims = "&(){}!#%-+/=<>, .\"\'\t\n";
-	char * token = std::strtok(read_buffer, delims);
+	int block_size = (int) thread_read / num_threads;
 
-	// get all words according to delims
-	while(token != NULL) {
-		auto len = std::strlen(token);
-		// we do not allowed wordsd longer than wordlen
-		if(len > wordlen) {
+	// TODO: Change to a more efficient way with memory copy
+
+	#pragma omp parallel
+	{
+
+		int thread_id = omp_get_thread_num();
+		char *buffer = strndup(read_buffer + block_size*thread_id, block_size);
+
+		// strtok is not constant
+		char * token = std::strtok(buffer, delims);
+
+		// get all words according to delims
+		while(token != NULL ) {
+			auto len = std::strlen(token);
+			// we do not allowed wordsd longer than wordlen
+			if(len > wordlen) {
+				token = std::strtok(NULL, delims);
+				continue;
+			}
+			token_v[thread_id].push_back(token);
 			token = std::strtok(NULL, delims);
-			continue;
 		}
-		token_v.push_back(token);
-		token = std::strtok(NULL, delims);
+
+		//free(buffer);
 	}
 }
 
@@ -77,18 +108,21 @@ void MapReduce::reduce() {
 	int bucket_sizes[world_size] = {0};
 
 	// local reduce
-	for(uint i = 0; i < token_v.size(); ++i) {
-		// get word hash
-		uint64_t to_bucket = std::hash<std::string>{}(token_v[i]) % world_size;
-		// check if we already found current word
-		auto found = buckets[to_bucket].find(token_v[i]);
-		if( found != buckets[to_bucket].end() ) {
-			++buckets[to_bucket].at(token_v[i]);
-		} else {
-			buckets[to_bucket].insert({token_v[i],1});
-			++bucket_sizes[to_bucket];
+	for(int thread_id = 0; thread_id < num_threads; thread_id++) {
+				for(uint i = 0; i < token_v[thread_id].size(); ++i) {
+			// get word hash
+			uint64_t to_bucket = std::hash<std::string>{}(token_v[thread_id][i]) % world_size;
+			// check if we already found current word
+			auto found = buckets[to_bucket].find(token_v[thread_id][i]);
+			if( found != buckets[to_bucket].end() ) {
+				++buckets[to_bucket].at(token_v[thread_id][i]);
+			} else {
+				buckets[to_bucket].insert({token_v[thread_id][i],1});
+				++bucket_sizes[to_bucket];
+			}
 		}
 	}
+
 
 	//global reduce via alltoall/v
 	int recv_counts[world_size];

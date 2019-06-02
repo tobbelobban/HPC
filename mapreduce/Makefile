@@ -10,7 +10,7 @@ CFLAGS = -I./include -g -Wall -O3 -std=c++11 -fopenmp
 all: dir $(BIN)/$(TARGET)
 
 run:
-	mpirun -n 5 -genv OMP_NUM_THREADS=2 -genv I_MPI_PIN_DOMAIN=omp $(BIN)/$(TARGET) ./test/test1.txt output
+	mpirun -n 5 -genv OMP_NUM_THREADS=2 -genv I_MPI_PIN_DOMAIN=omp $(BIN)/$(TARGET) ./test/wikipedia_10GB.txt output
 
 dir: ${BIN}
 

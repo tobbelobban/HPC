@@ -85,6 +85,13 @@ int main(int argc, char ** argv) {
 		//update read & map times
 		update_times( &tmp_start_time, &tmp_end_time, &avg_read_map_time, &prev_avg_read_map_time, &stddev_read_map_time, iteration, repeat );
 
+		if( world_rank == MASTER ) {
+			stddev_read_map_time = sqrt(stddev_read_map_time / (repeat - 1));
+
+			std::cout << "avg. read&map\t= " << avg_read_map_time << " ± " << stddev_read_map_time << std::endl;
+			
+		}
+
 		// finally we reduce
 		tmp_start_time = MPI_Wtime();
 		mp.reduce();

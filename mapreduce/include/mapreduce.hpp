@@ -26,9 +26,8 @@ struct WordCount {
 
 class MapReduce {
 public:
-	MPI_Datatype oldtype;
 	MPI_Datatype type_mapred;
-	MPI_Datatype read_type, chunk_type;
+	MPI_Datatype read_type;
 	MPI_File fh;
 	MPI_File out_fh;
 	MPI_Offset file_size;
@@ -45,14 +44,15 @@ public:
 	uint64_t remaining_read;
 	char * read_buffer;
 
-	std::vector<std::string> token_v;
+	std::vector<std::map<std::string,uint>> buckets;
+	int * bucket_sizes;
 	std::map<std::string,uint> result;
 
-	void init(const char *);
+	void init( const char * );
 	void read();
 	void map();
 	void reduce();
-	void write(const char *);
+	void write( const char * );
 	void cleanup();
 };
 

@@ -5,20 +5,17 @@
 #include "mapreduce.hpp"
 
 
-void update_times( const double * start_time, const double * end_time, double * avg_time, double * prev_avg_time, double *
-stddev_time, const int iteration,
-const int repeat ) {
+void update_times( const double * start_time, const double * end_time, double * avg_time, double * prev_avg_time, double *stddev_time, const int iteration, const int repeat ) {
 	*prev_avg_time = *avg_time;
 	*avg_time = *avg_time + ( (*end_time - *start_time) - *avg_time ) / (iteration+1);
-	*stddev_time = *stddev_time + ( (*end_time - *start_time) - *avg_time ) * ( (*end_time - *start_time) -
-*prev_avg_time);
+	*stddev_time = *stddev_time + ( (*end_time - *start_time) - *avg_time ) * ( (*end_time - *start_time) - *prev_avg_time);
 }
 
 int main(int argc, char ** argv) {
-	int world_rank, world_size;
+	int world_rank, world_size, wordlen = MAXWORDLEN;
 	int repeat = 1;
 	int opt;
-	MapReduce mp;
+
 
 	// time keepers
 	double avg_runtime = 0.0, avg_read_map_time = 0.0, avg_reduce_time = 0.0, avg_write_time = 0.0;
@@ -37,18 +34,16 @@ int main(int argc, char ** argv) {
 					repeat = atoi(optarg);
 					if( repeat < 1 ) {
 						if( world_rank == MASTER )
-							std::cout << "Please supply positive repeat count with flag -r." <<
-std::endl;
+							std::cout << "Please supply positive repeat count with flag -r." << std::endl;
 						MPI_Finalize();
 						exit(1);
 					}
 					break;
 			case 'w':
-					mp.wordlen = atoi(optarg);
-					if( mp.wordlen < 1 ) {
+					wordlen = atoi(optarg);
+					if( wordlen < 1 ) {
 						if( world_rank == MASTER )
-							std::cout << "Please supply positive word length with flag -w" <<
-std::endl;
+							std::cout << "Please supply positive word length with flag -w" << std::endl;
 						MPI_Finalize();
 						exit(1);
 					}
@@ -64,7 +59,7 @@ std::endl;
 	}
 
 	if( argv[optind] == NULL || argv[optind + 1] == NULL ) {
-		if(world_rank == MASTER) {
+		if( world_rank == MASTER ) {
 			std::cout << "Usage: " << argv[0] << " [flags] [input file] [output file]" << std::endl;
 		}
 		MPI_Finalize();
@@ -76,7 +71,8 @@ std::endl;
 		MPI_Barrier( MPI_COMM_WORLD );
 		start_time = MPI_Wtime();
 
-		mp.init(argv[optind]);
+		MapReduce mp;
+		mp.init( argv[optind] );
 
 		// continue reading -> mapping until out of data
 		tmp_start_time = MPI_Wtime();
@@ -84,11 +80,11 @@ std::endl;
 			mp.read();
 			mp.map();
 		}
+
 		tmp_end_time = MPI_Wtime();
 
 		//update read & map times
-		update_times( &tmp_start_time, &tmp_end_time, &avg_read_map_time, &prev_avg_read_map_time,
-&stddev_read_map_time, iteration, repeat );
+		update_times( &tmp_start_time, &tmp_end_time, &avg_read_map_time, &prev_avg_read_map_time, &stddev_read_map_time, iteration, repeat );
 
 		// finally we reduce
 		tmp_start_time = MPI_Wtime();
@@ -96,8 +92,7 @@ std::endl;
 		tmp_end_time = MPI_Wtime();
 
 		// update reduce times
-		update_times( &tmp_start_time, &tmp_end_time, &avg_reduce_time, &prev_avg_reduce_time, &stddev_reduce_time,
-iteration, repeat );
+		update_times( &tmp_start_time, &tmp_end_time, &avg_reduce_time, &prev_avg_reduce_time, &stddev_reduce_time, iteration, repeat );
 
 		// then write
 		tmp_start_time = MPI_Wtime();
@@ -105,8 +100,7 @@ iteration, repeat );
 		tmp_end_time = MPI_Wtime();
 
 		// update write times
-		update_times( &tmp_start_time, &tmp_end_time, &avg_write_time, &prev_avg_write_time, &stddev_write_time,
-iteration, repeat );
+		update_times( &tmp_start_time, &tmp_end_time, &avg_write_time, &prev_avg_write_time, &stddev_write_time, iteration, repeat );
 
 		// cleanup
 		mp.cleanup();

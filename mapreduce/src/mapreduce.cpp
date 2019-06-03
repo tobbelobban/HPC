@@ -9,6 +9,7 @@ void MapReduce::init( const char * filename ) {
 	world_rank = set_world_rank;
 
 	// create own MPI Dataype for message passing
+	MPI_Datatype oldtype;
 	int count = 2;
 	int blocklens[] = {1, MAXWORDLEN};
 	MPI_Aint disp_array[] = { offsetof(WordCount, local_count), offsetof(WordCount, word)};
@@ -29,30 +30,46 @@ void MapReduce::init( const char * filename ) {
 	if(world_rank == world_size-1) {
 		read_size += file_size - world_size*read_size; // if not even, last process gets the last bytes of file
 	}
-	// maximum buffer size is 64 MiB (64 * 1024 * 1024)
 	remaining_read = read_size;
-	read_buffer = new char[READSIZE+sizeof(char)];
+
+	// maximum read size is 64 MiB (64 * 1024 * 1024)
+	read_buffer = new char[sizeof(char)*READSIZE+sizeof(char)];
 	read_buffer[READSIZE] = '\0';
 
 	// create type for reading
+	MPI_Datatype chunk_type;
 	MPI_Type_contiguous( READSIZE, MPI_CHAR, &chunk_type );
-	MPI_Type_create_resized( chunk_type, 0, READSIZE*world_size, &read_type );
-	//MPI_Type_commit( &chunk_type );
+	MPI_Type_create_resized( chunk_type, 0, world_size*READSIZE, &read_type );
 	MPI_Type_commit( &read_type );
-
 	MPI_File_set_view( fh, READSIZE*world_rank, MPI_CHAR, read_type, "native", MPI_INFO_NULL );
-	// vector that holds <word,1> pairs
-	token_v = std::vector<std::string>();
+
+	// bucket for placing data
+	std::vector<std::map<std::string,uint>> tmp_buckets(world_size, std::map<std::string,uint>());
+	buckets = tmp_buckets;
+
+	// array of bucket sizes 
+	bucket_sizes = new int[world_size];
+	std::fill(bucket_sizes,bucket_sizes+world_size, 0);
 }
 
 void MapReduce::read() {
-	MPI_File_read_all( fh, read_buffer, 1, read_type, MPI_STATUS_IGNORE );
-	remaining_read -= READSIZE;
+	if(remaining_read >= READSIZE) {
+		MPI_File_read_all( fh, read_buffer, 1, read_type, MPI_STATUS_IGNORE );
+		remaining_read -= READSIZE;
+		file_offset += READSIZE;
+	} else {
+		MPI_File_set_view( fh, 0, MPI_CHAR, MPI_CHAR, "native", MPI_INFO_NULL );
+		MPI_File_seek( fh, file_offset, MPI_SEEK_SET );
+		MPI_File_read_all( fh, read_buffer, remaining_read, MPI_CHAR, MPI_STATUS_IGNORE );
+		read_buffer[remaining_read] = '\0';
+		file_offset += remaining_read;
+		remaining_read = 0;
+	}
 }
 
 void MapReduce::map() {
 	// delims is an array of chars we wish to split strings by
-	const char * delims = ";:!#¤?^*[]$_&(){}!#%-+/=<>, .\"\'\t\n";
+	const char * delims = "~;:!#¤?^*[]$_&(){}!#%-+/=<>, .\"\'\t\n";
 	char * token = std::strtok(read_buffer, delims);
 
 	// get all words according to delims
@@ -63,31 +80,20 @@ void MapReduce::map() {
 			token = std::strtok(NULL, delims);
 			continue;
 		}
-		token_v.push_back(token);
+		uint64_t to_bucket = std::hash<std::string>{}(token) % world_size;
+		// check if we already found current word
+		auto found = buckets[to_bucket].find(token);
+		if( found != buckets[to_bucket].end() ) {
+			++buckets[to_bucket].at(token);
+		} else {
+			buckets[to_bucket].insert({token,1});
+			++bucket_sizes[to_bucket];
+		}
 		token = std::strtok(NULL, delims);
 	}
 }
 
 void MapReduce::reduce() {
-	// vector of maps, each map contains local count of words
-	// each map is a "bucket" for each process
-	std::vector<std::map<std::string,uint>> buckets(world_size, std::map<std::string,uint>());
-	int bucket_sizes[world_size] = {0};
-
-	// local reduce
-	for(uint i = 0; i < token_v.size(); ++i) {
-		// get word hash
-		uint64_t to_bucket = std::hash<std::string>{}(token_v[i]) % world_size;
-		// check if we already found current word
-		auto found = buckets[to_bucket].find(token_v[i]);
-		if( found != buckets[to_bucket].end() ) {
-			++buckets[to_bucket].at(token_v[i]);
-		} else {
-			buckets[to_bucket].insert({token_v[i],1});
-			++bucket_sizes[to_bucket];
-		}
-	}
-
 	//global reduce via alltoall/v
 	int recv_counts[world_size];
 	int send_displs[world_size];
@@ -167,10 +173,13 @@ void MapReduce::write(const char * out_file) {
 void MapReduce::cleanup() {
 	// let's tidy up so that valgrind is happy
 	delete read_buffer;
+	delete bucket_sizes;
 
 	// and close our files
-	MPI_Type_free( &type_mapred );
-	MPI_Type_free( &oldtype );
 	MPI_File_close(&out_fh);
 	MPI_File_close(&fh);
+
+	MPI_Type_free( &type_mapred );
+	MPI_Type_free( &read_type );
+
 }

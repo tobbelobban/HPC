@@ -42,6 +42,7 @@ public:
 	uint64_t file_offset;
 	uint64_t read_size;
 	uint64_t remaining_read;
+	uint64_t map_read;
 	char * read_buffer;
 
 	std::vector<std::map<std::string,uint>> buckets;

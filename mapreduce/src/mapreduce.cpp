@@ -57,16 +57,18 @@ void MapReduce::read() {
 		MPI_File_read_all( fh, read_buffer, 1, read_type, MPI_STATUS_IGNORE );
 		remaining_read -= READSIZE;
 		file_offset += READSIZE;
+		map_read = READSIZE;
 	} else {
 		MPI_File_set_view( fh, 0, MPI_CHAR, MPI_CHAR, "native", MPI_INFO_NULL );
 		MPI_File_seek( fh, file_offset, MPI_SEEK_SET );
 		MPI_File_read_all( fh, read_buffer, remaining_read, MPI_CHAR, MPI_STATUS_IGNORE );
 		read_buffer[remaining_read] = '\0';
 		file_offset += remaining_read;
+		map_read = remaining_read;
 		remaining_read = 0;
 	}
 }
-
+/*
 void MapReduce::map() {
 	// delims is an array of chars we wish to split strings by
 	const char * delims = "~;:!#¤?^*[]$_&(){}!#%-+/=<>, .\"\'\t\n";
@@ -92,6 +94,71 @@ void MapReduce::map() {
 		token = std::strtok(NULL, delims);
 	}
 }
+*/
+
+void MapReduce::map() {
+
+	// Basic hash function
+	std::hash<std::string> hash;
+
+	char * str = read_buffer;
+	std::string delims ("~;:!#¤?^*[]$_&(){}!#%-+/=<>, .\"\'\t\n");
+
+	int from = 0;
+	int to = 0;
+	bool found = false;
+
+	char res[MAXWORDLEN];
+
+	for(int j = 0; j < map_read; j++) {
+
+		for(unsigned i = 0; i < delims.length(); ++i) {
+			if( delims.at(i) == str[j] ) {
+				found = true;
+				break;
+			}
+		}
+
+		if (found) {
+			if(from == to) {
+				from++;
+				to++;
+			} else {
+
+				if(MAXWORDLEN < to - from) {
+					to++;
+					from = to;
+					continue;
+				} else {
+
+					// Make a local copy of the result
+					for(int r = 0; r < to-from; r++)
+						res[r] = str[from+r];
+
+					res[to-from] = '\0';
+					to++;
+					from = to;
+
+					// Add to bucket
+					int to_bucket = (int) hash(res) % world_size;
+
+					// check if we already found current word
+					auto found = buckets[to_bucket].find(res);
+					if( found != buckets[to_bucket].end() ) {
+						++buckets[to_bucket].at(res);
+					} else {
+						buckets[to_bucket].insert({res,1});
+						++bucket_sizes[to_bucket];
+					}
+				}
+			}
+		} else {
+			to++;
+		}
+		found = false;
+	}
+}
+
 
 void MapReduce::reduce() {
 	//global reduce via alltoall/v

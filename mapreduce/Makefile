@@ -4,13 +4,13 @@ OBJ = $(SRC:.cpp=.o)
 BIN = ./bin
 TARGET = mapreduce.out
 
-LDFLAGS = -lm
-CFLAGS = -I./include -g -Wall -O3 -std=c++11
+LDFLAGS = -lm -fopenmp
+CFLAGS = -I./include -g -Wall -O3 -std=c++11 -fopenmp
 
 all: dir $(BIN)/$(TARGET)
 
 run:
-	mpirun $(BIN)/$(TARGET)
+	mpirun -n 1 -genv OMP_NUM_THREADS=1 -genv I_MPI_PIN_DOMAIN=omp $(BIN)/$(TARGET) ./test/test1.txt output
 
 dir: ${BIN}
 
@@ -21,7 +21,7 @@ ${BIN}:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BIN)/$(TARGET): $(OBJ)
-	$(CC) -o $@ $^ $(LDFLAGS) 
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 .PHONY: clean
 clean:

@@ -68,6 +68,7 @@ void MapReduce::read() {
 		remaining_read = 0;
 	}
 }
+
 /*
 void MapReduce::map() {
 	// delims is an array of chars we wish to split strings by
@@ -97,65 +98,80 @@ void MapReduce::map() {
 */
 
 void MapReduce::map() {
-
 	// Basic hash function
 	std::hash<std::string> hash;
 
-	char * str = read_buffer;
 	std::string delims ("~;:!#¤?^*[]$_&(){}!#%-+/=<>, .\"\'\t\n");
 
-	int from = 0;
-	int to = 0;
-	bool found = false;
+	#pragma omp parallel
+	{
+		char * str = read_buffer;
 
-	char res[MAXWORDLEN];
+		bool found = false;
 
-	for(int j = 0; j < map_read; j++) {
+		int thread_id = omp_get_thread_num();
+		int num_threads = omp_get_num_threads();
+		int chunk = map_read / num_threads;
+		int from = chunk*thread_id;
+		int to = chunk*thread_id;
 
-		for(unsigned i = 0; i < delims.length(); ++i) {
-			if( delims.at(i) == str[j] ) {
-				found = true;
-				break;
-			}
-		}
+		char res[MAXWORDLEN];
 
-		if (found) {
-			if(from == to) {
-				from++;
-				to++;
-			} else {
+		// TODO: Optional, move pointer to the right if intervening word.
 
-				if(MAXWORDLEN < to - from) {
-					to++;
-					from = to;
-					continue;
-				} else {
+		for(int j = chunk*thread_id; j < chunk * (thread_id + 1) && j < map_read; j++) {
 
-					// Make a local copy of the result
-					for(int r = 0; r < to-from; r++)
-						res[r] = str[from+r];
-
-					res[to-from] = '\0';
-					to++;
-					from = to;
-
-					// Add to bucket
-					int to_bucket = (int) hash(res) % world_size;
-
-					// check if we already found current word
-					auto found = buckets[to_bucket].find(res);
-					if( found != buckets[to_bucket].end() ) {
-						++buckets[to_bucket].at(res);
-					} else {
-						buckets[to_bucket].insert({res,1});
-						++bucket_sizes[to_bucket];
-					}
+			for(unsigned i = 0; i < delims.length(); ++i) {
+				if( delims.at(i) == str[j] ) {
+					found = true;
+					break;
 				}
 			}
-		} else {
-			to++;
-		}
-		found = false;
+
+			if (found) {
+				if(from == to) {
+					from++;
+					to++;
+				} else {
+
+					if(MAXWORDLEN < to - from) {
+						to++;
+						from = to;
+						continue;
+					} else {
+
+						// Make a local copy of the result
+						for(int r = 0; r < to-from; r++)
+							res[r] = str[from+r];
+
+							res[to-from] = '\0';
+							to++;
+							from = to;
+
+							// Add to bucket
+							int to_bucket = (int) hash(res) % world_size;
+
+							// Maybe different buckets for the different threads?
+
+							#pragma omp critical
+							{
+								// check if we already found current word
+								auto found = buckets[to_bucket].find(res);
+								if( found != buckets[to_bucket].end() ) {
+									++buckets[to_bucket].at(res);
+								} else {
+									buckets[to_bucket].insert({res,1});
+									++bucket_sizes[to_bucket];
+								}
+							}
+
+						}
+					}
+				} else {
+					to++;
+				}
+				found = false;
+			}
 	}
 }
 

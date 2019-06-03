@@ -156,7 +156,8 @@ void MapReduce::write(const char * out_file) {
 	// find out our offset into write file
 	uint64_t write_counts[world_size];
 	uint64_t wr_offset = 0;
-	MPI_Allgather( &wr_size, 1, MPI_INT, write_counts, 1, MPI_INT, MPI_COMM_WORLD );
+	write_counts[world_rank] = wr_size;
+	auto res = MPI_Allgather( &wr_size, 1, MPI_UINT64_T, write_counts, 1, MPI_UINT64_T, MPI_COMM_WORLD );
 
 	for(uint i = 0; i < world_rank; ++i)
 		wr_offset += write_counts[i];

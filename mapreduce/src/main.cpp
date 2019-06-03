@@ -80,14 +80,11 @@ std::endl;
 
 		// continue reading -> mapping until out of data
 		tmp_start_time = MPI_Wtime();
-		if(world_rank == MASTER)
-			std::cout <<  "start read & map" << std::endl;
+
 		while( mp.remaining_read > 0 ) {
 			mp.read();
 			mp.map();
 		}
-		if(world_rank == MASTER)
-			std::cout <<  "end read & map" << std::endl;
 
 		tmp_end_time = MPI_Wtime();
 
@@ -99,8 +96,7 @@ std::endl;
 		tmp_start_time = MPI_Wtime();
 		mp.reduce();
 		tmp_end_time = MPI_Wtime();
-		if(world_rank == MASTER)
-			std::cout <<  "end reduce" << std::endl;
+
 		// update reduce times
 		update_times( &tmp_start_time, &tmp_end_time, &avg_reduce_time, &prev_avg_reduce_time, &stddev_reduce_time,
 iteration, repeat );
@@ -109,8 +105,7 @@ iteration, repeat );
 		tmp_start_time = MPI_Wtime();
 		mp.write(argv[optind+1]);
 		tmp_end_time = MPI_Wtime();
-		if(world_rank == MASTER)
-			std::cout << "end write" << std::endl;
+
 		// update write times
 		update_times( &tmp_start_time, &tmp_end_time, &avg_write_time, &prev_avg_write_time, &stddev_write_time,
 iteration, repeat );

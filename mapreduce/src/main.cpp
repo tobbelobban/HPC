@@ -5,10 +5,12 @@
 #include "mapreduce.hpp"
 
 
-void update_times( const double * start_time, const double * end_time, double * avg_time, double * prev_avg_time, double *stddev_time, const int iteration, const int repeat ) {
+void update_times( const double * start_time, const double * end_time, double * avg_time, double * prev_avg_time, double
+*stddev_time, const int iteration, const int repeat ) {
 	*prev_avg_time = *avg_time;
 	*avg_time = *avg_time + ( (*end_time - *start_time) - *avg_time ) / (iteration+1);
-	*stddev_time = *stddev_time + ( (*end_time - *start_time) - *avg_time ) * ( (*end_time - *start_time) - *prev_avg_time);
+	*stddev_time = *stddev_time + ( (*end_time - *start_time) - *avg_time ) * ( (*end_time - *start_time) -
+*prev_avg_time);
 }
 
 int main(int argc, char ** argv) {
@@ -34,7 +36,8 @@ int main(int argc, char ** argv) {
 					repeat = atoi(optarg);
 					if( repeat < 1 ) {
 						if( world_rank == MASTER )
-							std::cout << "Please supply positive repeat count with flag -r." << std::endl;
+							std::cout << "Please supply positive repeat count with flag -r." <<
+std::endl;
 						MPI_Finalize();
 						exit(1);
 					}
@@ -43,7 +46,8 @@ int main(int argc, char ** argv) {
 					wordlen = atoi(optarg);
 					if( wordlen < 1 ) {
 						if( world_rank == MASTER )
-							std::cout << "Please supply positive word length with flag -w" << std::endl;
+							std::cout << "Please supply positive word length with flag -w" <<
+std::endl;
 						MPI_Finalize();
 						exit(1);
 					}
@@ -76,31 +80,40 @@ int main(int argc, char ** argv) {
 
 		// continue reading -> mapping until out of data
 		tmp_start_time = MPI_Wtime();
+		if(world_rank == MASTER)
+			std::cout <<  "start read & map" << std::endl;
 		while( mp.remaining_read > 0 ) {
 			mp.read();
 			mp.map();
 		}
+		if(world_rank == MASTER)
+			std::cout <<  "end read & map" << std::endl;
 
 		tmp_end_time = MPI_Wtime();
 
 		//update read & map times
-		update_times( &tmp_start_time, &tmp_end_time, &avg_read_map_time, &prev_avg_read_map_time, &stddev_read_map_time, iteration, repeat );
+		update_times( &tmp_start_time, &tmp_end_time, &avg_read_map_time, &prev_avg_read_map_time,
+&stddev_read_map_time, iteration, repeat );
 
 		// finally we reduce
 		tmp_start_time = MPI_Wtime();
 		mp.reduce();
 		tmp_end_time = MPI_Wtime();
-
+		if(world_rank == MASTER)
+			std::cout <<  "end reduce" << std::endl;
 		// update reduce times
-		update_times( &tmp_start_time, &tmp_end_time, &avg_reduce_time, &prev_avg_reduce_time, &stddev_reduce_time, iteration, repeat );
+		update_times( &tmp_start_time, &tmp_end_time, &avg_reduce_time, &prev_avg_reduce_time, &stddev_reduce_time,
+iteration, repeat );
 
 		// then write
 		tmp_start_time = MPI_Wtime();
 		mp.write(argv[optind+1]);
 		tmp_end_time = MPI_Wtime();
-
+		if(world_rank == MASTER)
+			std::cout << "end write" << std::endl;
 		// update write times
-		update_times( &tmp_start_time, &tmp_end_time, &avg_write_time, &prev_avg_write_time, &stddev_write_time, iteration, repeat );
+		update_times( &tmp_start_time, &tmp_end_time, &avg_write_time, &prev_avg_write_time, &stddev_write_time,
+iteration, repeat );
 
 		// cleanup
 		mp.cleanup();

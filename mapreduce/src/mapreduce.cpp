@@ -47,7 +47,7 @@ void MapReduce::init( const char * filename ) {
 	std::vector<std::map<std::string,uint>> tmp_buckets(world_size, std::map<std::string,uint>());
 	buckets = tmp_buckets;
 
-	// array of bucket sizes 
+	// array of bucket sizes
 	bucket_sizes = new int[world_size];
 	std::fill(bucket_sizes,bucket_sizes+world_size, 0);
 }
@@ -143,31 +143,35 @@ MPI_COMM_WORLD);
 }
 
 void MapReduce::write(const char * out_file) {
-	// keep track of how long our string is
-	std::string wr_str;
-	uint wr_size = 0;
-	// rough estimate of how much we will write
-	wr_str.reserve(result.size()*MAXWORDLEN*sizeof(char));
+	// counts how many chars will be written
+	uint64_t wr_size = 0;
 
-	// create string
+	// calculate how much each process will write
 	auto it = result.begin();
 	while(it != result.end()) {
 		wr_size += sizeof(char)*(it->first.size()+std::to_string(it->second).size()+4);
-		wr_str += '(' + it->first + ',' + std::to_string(it->second) + ")\n";
 		++it;
 	}
 
 	// find out our offset into write file
-	uint write_counts[world_size];
-	int wr_offset = 0;
+	uint64_t write_counts[world_size];
+	uint64_t wr_offset = 0;
 	MPI_Allgather( &wr_size, 1, MPI_INT, write_counts, 1, MPI_INT, MPI_COMM_WORLD );
+
 	for(uint i = 0; i < world_rank; ++i)
 		wr_offset += write_counts[i];
 
 	// now we write to file
 	MPI_File_open(MPI_COMM_WORLD, out_file, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &out_fh);
 	MPI_File_seek( out_fh, wr_offset, MPI_SEEK_SET );
-	MPI_File_write_all( out_fh, wr_str.c_str(), wr_size, MPI_CHAR, MPI_STATUS_IGNORE );
+
+	it = result.begin();
+	std::string write_string;
+	while( it != result.end() ) {
+		write_string = '(' + it->first + ',' + std::to_string(it->second) + ")\n";
+		MPI_File_write( out_fh, write_string.c_str(), write_string.size(), MPI_CHAR, MPI_STATUS_IGNORE );
+		++it;
+	}
 }
 
 void MapReduce::cleanup() {
@@ -181,5 +185,4 @@ void MapReduce::cleanup() {
 
 	MPI_Type_free( &type_mapred );
 	MPI_Type_free( &read_type );
-
 }

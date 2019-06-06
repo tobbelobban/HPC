@@ -103,28 +103,15 @@ void MapReduce::map() {
 
 	std::string delims ("~;:!#¤?^*[]$_&(){}!#%-+/=<>, .\"\'\t\n");
 
-	std::vector<std::vector<std::string>> words;
+	int num_threads = omp_get_max_threads();
 
 	#pragma omp parallel
 	{
 		char * str = read_buffer;
-
 		bool found = false;
-
 		int thread_id = omp_get_thread_num();
-		int num_threads = omp_get_num_threads();
 		int chunk = map_read / num_threads;
 		int from = chunk*thread_id;
-		int to = chunk*thread_id;
-
-		if(thread_id == 0) {
-			for(int i = 0; i < num_threads; i++)
-			words.push_back(std::vector<std::string>());
-		}
-
-		#pragma omp barrier
-
-
 		char res[MAXWORDLEN];
 
 		// TODO: Optional, move pointer to the right if intervening word.
@@ -139,55 +126,39 @@ void MapReduce::map() {
 			}
 
 			if (found) {
-				if(from == to) {
+				if(from == j) {
 					from++;
-					to++;
 				} else {
 
-					if(MAXWORDLEN < to - from) {
-						to++;
-						from = to;
+					if(MAXWORDLEN < j - from) {
+						from = j+1;
 						continue;
 					} else {
 
 						// Make a local copy of the result
-						for(int r = 0; r < to-from; r++)
+						for(int r = 0; r < j-from; r++)
 							res[r] = str[from+r];
 
-							res[to-from] = '\0';
-							to++;
-							from = to;
+						res[j-from] = '\0';
+						from = j+1;
 
-							// Add to bucket
-							std::string s(res);
-							//#pragma omp critical
-							words[thread_id].push_back(s);
-
+						#pragma omp critical
+						{
+							int to_bucket = (int) hash(res) % world_size;
+							auto found = buckets[to_bucket].find(res);
+							if( found != buckets[to_bucket].end() ) {
+								++buckets[to_bucket].at(res);
+							} else {
+								buckets[to_bucket].insert({res,1});
+								++bucket_sizes[to_bucket];
+							}
+						}
 						}
 					}
-				} else {
-					to++;
 				}
 				found = false;
 			}
 	}
-
-for(int i = 0; i < words.size(); i++) {
-	for(int j = 0; j < words[i].size(); j++) {
-		// check if we already found current word
-		int to_bucket = (int) hash(words[i][j]) % world_size;
-		auto found = buckets[to_bucket].find(words[i][j]);
-		if( found != buckets[to_bucket].end() ) {
-			++buckets[to_bucket].at(words[i][j]);
-		} else {
-			buckets[to_bucket].insert({words[i][j],1});
-			++bucket_sizes[to_bucket];
-		}
-
-
-	}
-}
-
 }
 
 

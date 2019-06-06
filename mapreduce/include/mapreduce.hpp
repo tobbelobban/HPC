@@ -9,6 +9,7 @@
 #include<map>
 #include<vector>
 #include<cstring>
+#include <omp.h>
 
 #define MASTER 0
 #define READSIZE 67108864 	// 64 MiB
@@ -42,6 +43,7 @@ public:
 	uint64_t file_offset;
 	uint64_t read_size;
 	uint64_t remaining_read;
+	uint buffer_size = READSIZE;
 	char * read_buffer;
 
 	std::vector<std::map<std::string,uint>> buckets;

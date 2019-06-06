@@ -103,6 +103,8 @@ void MapReduce::map() {
 
 	std::string delims ("~;:!#¤?^*[]$_&(){}!#%-+/=<>, .\"\'\t\n");
 
+	std::vector<std::vector<std::string>> words;
+
 	#pragma omp parallel
 	{
 		char * str = read_buffer;
@@ -114,6 +116,14 @@ void MapReduce::map() {
 		int chunk = map_read / num_threads;
 		int from = chunk*thread_id;
 		int to = chunk*thread_id;
+
+		if(thread_id == 0) {
+			for(int i = 0; i < num_threads; i++)
+			words.push_back(std::vector<std::string>());
+		}
+
+		#pragma omp barrier
+
 
 		char res[MAXWORDLEN];
 
@@ -149,21 +159,9 @@ void MapReduce::map() {
 							from = to;
 
 							// Add to bucket
-							int to_bucket = (int) hash(res) % world_size;
-
-							// Maybe different buckets for the different threads?
-
-							#pragma omp critical
-							{
-								// check if we already found current word
-								auto found = buckets[to_bucket].find(res);
-								if( found != buckets[to_bucket].end() ) {
-									++buckets[to_bucket].at(res);
-								} else {
-									buckets[to_bucket].insert({res,1});
-									++bucket_sizes[to_bucket];
-								}
-							}
+							std::string s(res);
+							//#pragma omp critical
+							words[thread_id].push_back(s);
 
 						}
 					}
@@ -173,6 +171,23 @@ void MapReduce::map() {
 				found = false;
 			}
 	}
+
+for(int i = 0; i < words.size(); i++) {
+	for(int j = 0; j < words[i].size(); j++) {
+		// check if we already found current word
+		int to_bucket = (int) hash(words[i][j]) % world_size;
+		auto found = buckets[to_bucket].find(words[i][j]);
+		if( found != buckets[to_bucket].end() ) {
+			++buckets[to_bucket].at(words[i][j]);
+		} else {
+			buckets[to_bucket].insert({words[i][j],1});
+			++bucket_sizes[to_bucket];
+		}
+
+
+	}
+}
+
 }
 
 
@@ -186,6 +201,8 @@ void MapReduce::reduce() {
 
 	// find out how many words are being sent to each process
 	MPI_Alltoall( bucket_sizes, 1, MPI_INT, recv_counts, 1, MPI_INT, MPI_COMM_WORLD );
+
+
 
 	// prepare displacement arrays for mpi_alltoallv
 	for(uint i = 0; i < world_size; ++i) {

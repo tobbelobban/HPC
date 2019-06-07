@@ -9,9 +9,6 @@ CFLAGS = -I./include -g -Wall -O3 -std=c++11 -fopenmp
 
 all: dir $(BIN)/$(TARGET)
 
-run:
-	mpirun -n 4 -genv OMP_NUM_THREADS=4 -genv I_MPI_PIN_DIMAIN=omp $(BIN)/$(TARGET) 
-
 dir: ${BIN}
 
 ${BIN}:

@@ -1,1 +1,16 @@
-asdkjasldjkl
+HOW TO COMPILE
+
+If on Beskow:
+  1) swap to gnu environment.
+  2) in Makefile, change mpicxx to CC 
+
+then call make
+
+
+HOW TO RUN
+Locally:
+  mpirun -n #processes -genv OMP_NUM_THREADS=#threads -genv I_MPI_PIN_DOMAIN=omp ./bin/mapreduce.out -r #repeats input.txt output.txt
+  
+Beskow:
+  export OMP_NUM_THREADS=#threads
+  aprun -n #processes -d $OMP_NUM_THREADS ./bin/mapreduce.out -r #repeats input.txt output.txt

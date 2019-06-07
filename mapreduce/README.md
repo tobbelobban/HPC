@@ -7,7 +7,7 @@ If on Beskow:
 then call make
 
 
-HOW TO RUN
+HOW TO RUN<br>
 Locally:
   mpirun -n #processes -genv OMP_NUM_THREADS=#threads -genv I_MPI_PIN_DOMAIN=omp ./bin/mapreduce.out -r #repeats input.txt output.txt
   

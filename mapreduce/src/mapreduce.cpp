@@ -58,7 +58,8 @@ void MapReduce::read() {
 		remaining_read -= READSIZE;
 		file_offset += READSIZE;
 	} else {
-		MPI_File_set_view( fh, 0, MPI_CHAR, MPI_CHAR, "native", MPI_INFO_NULL );
+		// data was not evenly divided into 64 MiB chunks
+		MPI_File_set_view( fh, 0, MPI_CHAR, MPI_CHAR, "native", MPI_INFO_NULL ); // reset view to entire file
 		MPI_File_seek( fh, file_offset, MPI_SEEK_SET );
 		MPI_File_read_all( fh, read_buffer, remaining_read, MPI_CHAR, MPI_STATUS_IGNORE );
 		read_buffer[remaining_read] = '\0';
@@ -88,7 +89,7 @@ void MapReduce::map() {
 		thread_buffer = read_buffer + chunk*thread_id; // pointer to where each thread reads
 		word_start = 0;
 		if( thread_id == omp_get_max_threads() - 1 )
-			chunk += buffer_size - omp_get_max_threads()*chunk;
+			chunk += buffer_size - omp_get_max_threads()*chunk; // last thread gets last bytes in read buffer
 
 		//each thread has a buffer for copying words into
 		char word_buffer[MAXWORDLEN+sizeof(char)];
@@ -98,11 +99,11 @@ void MapReduce::map() {
 		for(uint c = 0; c < chunk; ++c) {
 			for(unsigned d = 0; d < delims.length(); ++d) {
 				if( delims.at(d) == thread_buffer[c] ) {
-					found = true; // thread found a delimeter char (aka thread now have a word)
+					found = true; // thread found a delimeter char ( thread now has a word)
 					break;
 				}
 			}
-			if(!found && c == chunk - 1) {found = true; ++c;}
+			if(!found && c == chunk - 1) {found = true; ++c;} // if at end of chunk make sure to add last chars
 			if( found ) {
 				if( word_start == c ) { // thread found multiple delimeter chars next to each other
 					++word_start;
@@ -167,8 +168,7 @@ void MapReduce::reduce() {
 	}
 
 	// this is our magical line of code <3
-	MPI_Alltoallv(sendwords, bucket_sizes, send_displs, type_mapred, recvwords, recv_counts, recv_displs, type_mapred,
-MPI_COMM_WORLD);
+	MPI_Alltoallv(sendwords, bucket_sizes, send_displs, type_mapred, recvwords, recv_counts, recv_displs, type_mapred, MPI_COMM_WORLD);
 
 	// finally compute total counts of all words
 	for(int i = 0; i < total_recv; ++i) {

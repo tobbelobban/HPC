@@ -71,46 +71,68 @@ void MapReduce::read() {
 void MapReduce::map() {
 	// delimeters for tokenizing words
 	const std::string delims ("~;:!#¤?^*[]$_&(){}!#%-+/=<>, .\"\'\t\n");
-	std::hash<std::string> hash;
 
-	uint word_start = 0;
-	char word_buffer[MAXWORDLEN+sizeof(char)];
-	word_buffer[MAXWORDLEN] = '\0';
-	bool found = false;
+	int num_threads = omp_get_max_threads();
+	int thread_id;
+	uint chunk, word_start;
+	char * thread_buffer;
 
-	for(uint c = 0; c < buffer_size; ++c) {
-		for(unsigned d = 0; d < delims.length(); ++d) {
-			if( delims.at(d) == read_buffer[c] ) {
-				found = true; // thread found a delimeter char (aka thread now have a word)
-				break;
-			}
-		}
-		if(!found && c == buffer_size - 1) {found = true; ++c;}
-		if( found ) {
-			if( word_start == c ) { // thread found multiple delimeter chars next to each other
-				++word_start;
-			} else {
-				if( MAXWORDLEN < c - word_start ) { // word is too big for our MPI struct :(
-					word_start = c + 1; 	// next possible word can start after delimeter at index c
-					continue;
-				} else {
-					// Make a local copy of the result
-					std::memcpy( word_buffer, read_buffer + word_start, c - word_start );
-					word_buffer[c - word_start] = '\0';
-					word_start = c + 1;
+	#pragma omp parallel private(thread_id, chunk, word_start, thread_buffer)
+	{
+		// hash function
+		std::hash<std::string> hash;
 
-					int to_bucket = hash(word_buffer) % world_size;
-					auto found = buckets[to_bucket].find(word_buffer);
-					if( found != buckets[to_bucket].end() ) {
-						++buckets[to_bucket].at(word_buffer);
-					} else {
-						buckets[to_bucket].insert({word_buffer,1});
-						++bucket_sizes[to_bucket];
-					}
+		// set up each thread environment
+		thread_id = omp_get_thread_num();
+		chunk = buffer_size / num_threads; // how much data each thread will tokenize
+		thread_buffer = read_buffer + chunk*thread_id; // pointer to where each thread reads
+		word_start = 0;
+		if( thread_id == omp_get_max_threads() - 1 )
+			chunk += buffer_size - omp_get_max_threads()*chunk;
+
+		//each thread has a buffer for copying words into
+		char word_buffer[MAXWORDLEN+sizeof(char)];
+		word_buffer[MAXWORDLEN] = '\0';
+		bool found = false;
+
+		for(uint c = 0; c < chunk; ++c) {
+			for(unsigned d = 0; d < delims.length(); ++d) {
+				if( delims.at(d) == thread_buffer[c] ) {
+					found = true; // thread found a delimeter char (aka thread now have a word)
+					break;
 				}
 			}
+			if(!found && c == chunk - 1) {found = true; ++c;}
+			if( found ) {
+				if( word_start == c ) { // thread found multiple delimeter chars next to each other
+					++word_start;
+				} else {
+					if( MAXWORDLEN < c - word_start ) { // word is too big for our MPI struct :(
+						word_start = c + 1; 	// next possible word can start after delimeter at index c
+						continue;
+					} else {
+						// Make a local copy of the result
+						std::memcpy( word_buffer, thread_buffer + word_start, c - word_start );
+						word_buffer[c - word_start] = '\0';
+						word_start = c + 1;
+
+						// critical section for inserting words into map
+						#pragma omp critical
+						{
+							int to_bucket = hash(word_buffer) % world_size;
+							auto found = buckets[to_bucket].find(word_buffer);
+							if( found != buckets[to_bucket].end() ) {
+								++buckets[to_bucket].at(word_buffer);
+							} else {
+								buckets[to_bucket].insert({word_buffer,1});
+								++bucket_sizes[to_bucket];
+							}
+						}
+					}
+				}
+				found = false;
+			}
 		}
-		found = false;
 	}
 }
 
@@ -145,7 +167,8 @@ void MapReduce::reduce() {
 	}
 
 	// this is our magical line of code <3
-	MPI_Alltoallv(sendwords, bucket_sizes, send_displs, type_mapred, recvwords, recv_counts, recv_displs, type_mapred, MPI_COMM_WORLD);
+	MPI_Alltoallv(sendwords, bucket_sizes, send_displs, type_mapred, recvwords, recv_counts, recv_displs, type_mapred,
+MPI_COMM_WORLD);
 
 	// finally compute total counts of all words
 	for(int i = 0; i < total_recv; ++i) {

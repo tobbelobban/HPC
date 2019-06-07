@@ -8,9 +8,9 @@ then call make
 
 
 HOW TO RUN<br><br>
-Locally:
-  mpirun -n #processes -genv OMP_NUM_THREADS=#threads -genv I_MPI_PIN_DOMAIN=omp ./bin/mapreduce.out -r #repeats input.txt output.txt
+Locally:<br>
+  mpirun -n #processes -genv OMP_NUM_THREADS=#threads -genv I_MPI_PIN_DOMAIN=omp ./bin/mapreduce.out -r #repeats input.txt output.txt<br>
   
 Beskow:<br>
-  export OMP_NUM_THREADS=#threads
-  aprun -n #processes -d $OMP_NUM_THREADS ./bin/mapreduce.out -r #repeats input.txt output.txt
+  export OMP_NUM_THREADS=#threads<br>
+  aprun -n #processes -d $OMP_NUM_THREADS ./bin/mapreduce.out -r #repeats input.txt output.txt<br>

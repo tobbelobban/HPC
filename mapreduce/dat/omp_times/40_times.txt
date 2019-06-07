@@ -1,0 +1,10 @@
+run: 0		= 217.866s
+run: 1		= 212.655s
+run: 2		= 212.7s
+avg. duration	= 214.407 ± 2.99539
+avg. read	= 44.7423 ± 3.76242
+avg. map	= 166.895 ± 0.462069
+avg. reduce	= 2.1327 ± 0.251154
+avg. write	= 0.443933 ± 0.00617177
+
+Application 20302448 resources: utime ~35533s, stime ~7650s, Rss ~491580, inblocks ~250236494, outblocks ~565968

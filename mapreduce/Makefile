@@ -1,11 +1,11 @@
-CC = mpiCC
+CC = mpicxx
 SRC = $(wildcard src/*.cpp)
 OBJ = $(SRC:.cpp=.o)
 BIN = ./bin
 TARGET = mapreduce.out
 
-LDFLAGS = -lm
-CFLAGS = -I./include -g -Wall -O3
+LDFLAGS = -lm -fopenmp
+CFLAGS = -I./include -g -Wall -O3 -std=c++11 -fopenmp
 
 all: dir $(BIN)/$(TARGET)
 
@@ -18,7 +18,7 @@ ${BIN}:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BIN)/$(TARGET): $(OBJ)
-	$(CC) -o $@ $^ $(LDFLAGS) 
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 .PHONY: clean
 clean:
